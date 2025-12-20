@@ -11,7 +11,8 @@ import {
   getRankingLists,
   removeAlbumFromRanking,
   submitComparison,
-  upsertUserAlbum
+  upsertUserAlbum,
+  reorderRanking
 } from "../lib/api";
 import { supabase } from "../lib/supabaseClient";
 import { RankingItem } from "../types";
@@ -109,22 +110,75 @@ const AlbumPage = () => {
     queryClient.invalidateQueries({ queryKey: ["rankingItems", selectedRanking] });
   };
 
-  const opponent = useMemo(() => {
-    return rankingItems.find((item) => item.album_id !== albumId);
-  }, [rankingItems, albumId]);
+  const [opponent, setOpponent] = useState<RankingItem | null>(null);
+
+  const orderedItems = useMemo(() => {
+    return [...rankingItems].sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+  }, [rankingItems]);
+
+  useEffect(() => {
+    if (!albumId) return;
+    const candidates = orderedItems.filter((item) => item.album_id !== albumId);
+    if (candidates.length === 0) {
+      setOpponent(null);
+      return;
+    }
+    // Weight toward nearby positions
+    const current = orderedItems.find((i) => i.album_id === albumId);
+    candidates.sort((a, b) =>
+      Math.abs((a.position ?? 0) - (current?.position ?? 0)) -
+      Math.abs((b.position ?? 0) - (current?.position ?? 0))
+    );
+    const top = candidates.slice(0, Math.min(3, candidates.length));
+    const idx = Math.floor(Math.random() * top.length);
+    setOpponent(top[idx]);
+  }, [orderedItems, albumId]);
 
   const comparisonMutation = useMutation({
-    mutationFn: submitComparison
+    mutationFn: submitComparison,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["rankingItems", selectedRanking] });
+      queryClient.invalidateQueries({ queryKey: ["albumMemberships", albumId] });
+    }
   });
 
-  const handleCompare = (winnerAlbumId: string) => {
+  const handleCompare = async (winnerAlbumId: string) => {
     if (!selectedRanking || !albumId || !opponent) return;
-    comparisonMutation.mutate({
+    const loserAlbumId = opponent.album_id === winnerAlbumId ? albumId : opponent.album_id;
+
+    await comparisonMutation.mutateAsync({
       rankingListId: selectedRanking,
       leftAlbumId: albumId,
       rightAlbumId: opponent.album_id,
       winnerAlbumId
     });
+
+    // Reorder so winner stays ahead of loser; if already ahead, keep order
+    const updatedIds = orderedItems.map((i) => i.album_id);
+    const winnerIdx = updatedIds.indexOf(winnerAlbumId);
+    const loserIdx = updatedIds.indexOf(loserAlbumId);
+
+    if (winnerIdx === -1 || loserIdx === -1) {
+      // Fallback: move winner to front if something is off
+      const existingIdx = updatedIds.indexOf(winnerAlbumId);
+      if (existingIdx !== -1) updatedIds.splice(existingIdx, 1);
+      updatedIds.unshift(winnerAlbumId);
+    } else if (winnerIdx > loserIdx) {
+      // Only move if winner was below loser
+      updatedIds.splice(winnerIdx, 1);
+      updatedIds.splice(loserIdx, 0, winnerAlbumId);
+    }
+
+    await reorderRanking({ rankingListId: selectedRanking, orderedAlbumIds: updatedIds });
+    queryClient.invalidateQueries({ queryKey: ["rankingItems", selectedRanking] });
+
+    const candidates = orderedItems.filter((item) => item.album_id !== albumId);
+    if (candidates.length === 0) {
+      setOpponent(null);
+    } else {
+      const idx = Math.floor(Math.random() * candidates.length);
+      setOpponent(candidates[idx]);
+    }
   };
 
   if (!detail) {
@@ -214,7 +268,9 @@ const AlbumPage = () => {
         {opponent && (
           <div className="comparison">
             <div className="compare-col">
-              <div className="pill">Current</div>
+              {album.artwork_thumb_path && (
+                <img src={albumImage(album.artwork_thumb_path)} alt={album.title} className="compare-img" />
+              )}
               <div className="album-title">{album.title}</div>
               <div className="album-artist">{album.artist}</div>
               <button
@@ -222,11 +278,17 @@ const AlbumPage = () => {
                 onClick={() => handleCompare(album.id)}
                 disabled={(comparisonMutation as any).isPending}
               >
-                Left is better
+                This one wins
               </button>
             </div>
             <div className="compare-col">
-              <div className="pill">Opponent</div>
+              {opponent.album?.artwork_thumb_path && (
+                <img
+                  src={albumImage(opponent.album.artwork_thumb_path)}
+                  alt={opponent.album.title}
+                  className="compare-img"
+                />
+              )}
               <div className="album-title">{opponent.album?.title ?? "Unknown"}</div>
               <div className="album-artist">{opponent.album?.artist ?? ""}</div>
               <button
@@ -234,7 +296,7 @@ const AlbumPage = () => {
                 onClick={() => handleCompare(opponent.album_id)}
                 disabled={(comparisonMutation as any).isPending}
               >
-                Right is better
+                Opponent wins
               </button>
             </div>
           </div>

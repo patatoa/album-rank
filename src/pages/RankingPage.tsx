@@ -1,7 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router-dom";
-import { getRankingItems, getRankingList, getRankingLists, ensureRankingLists, reorderRanking } from "../lib/api";
+import {
+  getRankingItems,
+  getRankingList,
+  getRankingLists,
+  ensureRankingLists,
+  reorderRanking
+} from "../lib/api";
 import { RankingItem } from "../types";
 import {
   DndContext,
@@ -26,6 +32,11 @@ const albumImage = (path: string | null | undefined) => {
   if (!path) return "";
   const { data } = supabase.storage.from(bucket).getPublicUrl(path);
   return data.publicUrl;
+};
+
+type ComparisonPair = {
+  left: RankingItem;
+  right: RankingItem;
 };
 
 const SortableCard = ({ item }: { item: RankingItem }) => {
@@ -58,6 +69,7 @@ const RankingPage = () => {
   const { rankingListId } = useParams<{ rankingListId: string }>();
   const navigate = useNavigate();
   const [sortMode, setSortMode] = useState<"rank" | "added">("rank");
+  const [localItems, setLocalItems] = useState<RankingItem[]>([]);
   const queryClient = useQueryClient();
 
   const { data: rankingLists } = useQuery({
@@ -77,7 +89,7 @@ const RankingPage = () => {
     enabled: !!rankingListId
   });
 
-  const { data: items = [] } = useQuery({
+  const { data: itemsData } = useQuery({
     queryKey: ["rankingItems", rankingListId],
     queryFn: () => getRankingItems(rankingListId ?? ""),
     enabled: !!rankingListId
@@ -85,34 +97,49 @@ const RankingPage = () => {
 
   const reorderMutation = useMutation({
     mutationFn: reorderRanking,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["rankingItems", rankingListId] })
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["rankingItems", rankingListId] });
+    },
+    onError: (err) => {
+      console.error("Reorder failed", err);
+    }
   });
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
+  useEffect(() => {
+    if (itemsData) {
+      setLocalItems(itemsData);
+    } else {
+      setLocalItems([]);
+    }
+  }, [itemsData]);
+
   const sortedItems = useMemo(() => {
+    const base = [...localItems];
     if (sortMode === "added") {
-      return [...items].sort((a, b) => {
+      return base.sort((a, b) => {
         const aTime = a.added_at ? new Date(a.added_at).getTime() : 0;
         const bTime = b.added_at ? new Date(b.added_at).getTime() : 0;
         return bTime - aTime;
       });
     }
-    return items;
-  }, [items, sortMode]);
+    return base.sort((a, b) => a.position - b.position);
+  }, [localItems, sortMode]);
 
   const handleDragEnd = (event: DragEndEvent) => {
     if (sortMode === "added") return;
     const { active, over } = event;
     if (!over || active.id === over.id) return;
 
-    const currentIndex = items.findIndex((item) => item.album_id === active.id);
-    const overIndex = items.findIndex((item) => item.album_id === over.id);
-    const newItems = arrayMove(items, currentIndex, overIndex).map((item, idx) => ({
+    const currentIndex = localItems.findIndex((item) => item.album_id === active.id);
+    const overIndex = localItems.findIndex((item) => item.album_id === over.id);
+    const newItems = arrayMove(localItems, currentIndex, overIndex).map((item, idx) => ({
       ...item,
       position: idx + 1
     }));
     const orderedAlbumIds = newItems.map((i) => i.album_id);
+    setLocalItems(newItems);
     reorderMutation.mutate({ rankingListId: rankingListId!, orderedAlbumIds });
   };
 
@@ -154,15 +181,18 @@ const RankingPage = () => {
         {sortedItems.length === 0 && <div className="muted">No albums yet. Add some on the /add page.</div>}
         {sortedItems.length > 0 && (
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-            <SortableContext items={items.map((i) => i.album_id)} strategy={horizontalListSortingStrategy}>
+            <SortableContext items={sortedItems.map((i) => i.album_id)} strategy={horizontalListSortingStrategy}>
               <div className="album-grid">
                 {sortedItems.map((item) => (
-                  <SortableCard key={item.album_id} item={item} />
+                  <div key={item.album_id} onClick={() => navigate(`/albums/${item.album_id}?ranking=${rankingListId}`)}>
+                    <SortableCard item={item} />
+                  </div>
                 ))}
               </div>
             </SortableContext>
           </DndContext>
         )}
+
       </section>
     </div>
   );
