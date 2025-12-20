@@ -13,6 +13,7 @@ type RequestBody = {
   releaseYear?: number | null;
   targetRankingListId?: string | null;
   includeInRanking?: boolean;
+  coverBase64?: string;
   thumbBase64?: string;
   mediumBase64?: string;
 };
@@ -51,10 +52,13 @@ serve(async (req) => {
     }
 
     const includeInRanking = body.includeInRanking ?? true;
-    const thumbBytes = decodeBase64(body.thumbBase64);
-    const mediumBytes = decodeBase64(body.mediumBase64 ?? body.thumbBase64);
+    const coverBytes = decodeBase64(body.coverBase64 ?? body.thumbBase64 ?? body.mediumBase64);
 
-    if (!thumbBytes || !mediumBytes) {
+    // Reuse the same image for both sizes (scaling handled client-side or later)
+    const thumbBytes = coverBytes;
+    const mediumBytes = decodeBase64(body.mediumBase64 ?? body.coverBase64 ?? body.thumbBase64);
+
+    if (!thumbBytes) {
       return errorResponse("Invalid or missing image data", 400);
     }
 
@@ -173,6 +177,83 @@ serve(async (req) => {
       if (eloError) {
         return errorResponse(eloError.message, 500);
       }
+    }
+
+    const getOrCreateAllTimeList = async () => {
+      const { data: existing, error: selectError } = await serviceClient
+        .from("ranking_lists")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("kind", "custom")
+        .eq("name", "All Time")
+        .maybeSingle();
+
+      if (selectError) throw selectError;
+      if (existing) return existing.id as string;
+
+      const { data: inserted, error: insertError } = await serviceClient
+        .from("ranking_lists")
+        .insert({ user_id: user.id, kind: "custom", name: "All Time" })
+        .select("id")
+        .single();
+
+      if (insertError || !inserted) {
+        throw insertError ?? new Error("Failed to create All Time ranking");
+      }
+
+      return inserted.id as string;
+    };
+
+    const ensureRankingItem = async (rankingListId: string) => {
+      const { data: existingItem, error: itemError } = await serviceClient
+        .from("ranking_items")
+        .select("position")
+        .eq("ranking_list_id", rankingListId)
+        .eq("album_id", albumId)
+        .maybeSingle();
+
+      if (itemError) throw itemError;
+      if (existingItem) return false;
+
+      const { data: maxRow, error: maxError } = await serviceClient
+        .from("ranking_items")
+        .select("position")
+        .eq("ranking_list_id", rankingListId)
+        .order("position", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (maxError) throw maxError;
+
+      const nextPosition = (maxRow?.position ?? 0) + 1;
+      const { error: insertError } = await serviceClient.from("ranking_items").insert({
+        ranking_list_id: rankingListId,
+        album_id: albumId,
+        position: nextPosition
+      });
+
+      if (insertError) throw insertError;
+
+      const { error: eloError } = await serviceClient
+        .from("elo_ratings")
+        .upsert(
+          { ranking_list_id: rankingListId, album_id: albumId },
+          { onConflict: "ranking_list_id,album_id" }
+        );
+
+      if (eloError) throw eloError;
+
+      return true;
+    };
+
+    try {
+      const allTimeListId = await getOrCreateAllTimeList();
+      const addedAllTime = await ensureRankingItem(allTimeListId);
+      if (addedAllTime) {
+        createdRankingItem = true;
+      }
+    } catch (err) {
+      console.error("Failed to ensure All Time ranking", err);
     }
 
     return jsonResponse({

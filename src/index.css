@@ -1,7 +1,7 @@
 :root {
   font-family: "Inter", system-ui, -apple-system, sans-serif;
   color: #0f172a;
-  background: #f8fafc;
+  background: #f7f8fb;
   line-height: 1.6;
 }
 
@@ -14,13 +14,84 @@ body {
 }
 
 .page {
-  max-width: 960px;
+  max-width: 1100px;
   margin: 0 auto;
-  padding: 48px 20px 72px;
+  padding: 32px 20px 64px;
 }
 
-.hero {
-  margin-bottom: 32px;
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 800;
+  font-size: 18px;
+}
+
+.logo-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: linear-gradient(120deg, #0ea5e9, #7c3aed);
+  display: inline-block;
+}
+
+.nav {
+  display: flex;
+  gap: 14px;
+}
+
+.nav-group {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.nav-link {
+  padding: 8px 12px;
+  border-radius: 10px;
+  color: #0f172a;
+  text-decoration: none;
+  border: 1px solid #e2e8f0;
+  background: white;
+}
+
+.nav-link.active {
+  border-color: #0ea5e9;
+  color: #0ea5e9;
+}
+
+.page-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+
+.card {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.05);
+}
+
+.card-header {
+  margin-bottom: 12px;
+}
+
+.card-header h2 {
+  margin: 0 0 4px;
+}
+
+.card-header p {
+  margin: 0;
+  color: #475569;
 }
 
 .eyebrow {
@@ -28,24 +99,55 @@ body {
   letter-spacing: 0.08em;
   font-size: 12px;
   color: #475569;
-  margin: 0 0 8px;
+  margin: 0 0 6px;
 }
 
-h1 {
-  margin: 0 0 12px;
-  font-size: 36px;
+.input {
+  width: 100%;
+  border: 1px solid #dbe2ee;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 15px;
 }
 
-.lede {
-  margin: 0 0 16px;
-  color: #475569;
-  max-width: 720px;
-}
-
-.cta-row {
+.form-row {
   display: flex;
   gap: 12px;
-  margin-top: 8px;
+  align-items: center;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.ranking-select {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
 }
 
 .button {
@@ -54,62 +156,207 @@ h1 {
   border: 1px solid #cbd5e1;
   background: white;
   cursor: pointer;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .button.primary {
-  background: #0ea5e9;
+  background: linear-gradient(120deg, #0ea5e9, #2563eb);
   color: white;
-  border: 1px solid #0284c7;
+  border: none;
 }
 
 .button.ghost {
   background: transparent;
 }
 
-.card {
-  background: white;
+.auth-shell {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle at 20% 20%, rgba(14, 165, 233, 0.08), transparent 30%),
+    radial-gradient(circle at 80% 0%, rgba(124, 58, 237, 0.08), transparent 30%),
+    #f7f8fb;
+}
+
+.auth-card {
+  max-width: 420px;
+  text-align: center;
+}
+
+.error {
+  color: #b91c1c;
+  background: #fef2f2;
+  border: 1px solid #fecdd3;
+  padding: 10px;
+  border-radius: 10px;
+}
+
+.results {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.result {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  width: 100%;
+  background: #f8fafc;
   border: 1px solid #e2e8f0;
-  border-radius: 14px;
-  padding: 20px;
-  margin-top: 16px;
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.04);
+  border-radius: 12px;
+  padding: 10px;
+  cursor: pointer;
 }
 
-.card-header h2 {
-  margin: 0 0 6px;
+.result img {
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
 }
 
-.card-header p {
-  margin: 0;
+.result-title {
+  font-weight: 700;
+}
+
+.result-artist {
+  color: #475569;
+  font-size: 14px;
+}
+
+.muted {
+  color: #6b7280;
+}
+
+.album-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.album-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.album-card img {
+  width: 100%;
+  border-radius: 10px;
+}
+
+.album-rank {
+  font-size: 12px;
   color: #475569;
 }
 
-.grid {
+.album-title {
+  font-weight: 700;
+}
+
+.album-artist {
+  color: #475569;
+  font-size: 14px;
+}
+
+.album-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.pill-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.pill-btn {
+  padding: 8px 12px;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  cursor: pointer;
+}
+
+.pill-btn.active {
+  background: #0ea5e9;
+  color: white;
+  border-color: #0ea5e9;
+}
+
+.flex-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.album-detail {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-columns: 240px 1fr;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.album-detail img {
+  width: 100%;
+  border-radius: 14px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.08);
+}
+
+.detail-meta {
+  display: flex;
+  flex-direction: column;
   gap: 12px;
-  margin-top: 14px;
 }
 
 .pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  font-weight: 600;
+  width: fit-content;
+}
+
+.pill.link {
+  text-decoration: none;
+  color: #0ea5e9;
+}
+
+.comparison {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.compare-col {
   border: 1px solid #e2e8f0;
   border-radius: 12px;
   padding: 12px;
   background: #f8fafc;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
-.pill-title {
-  font-weight: 700;
-}
+@media (max-width: 720px) {
+  .form-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
 
-.pill-desc {
-  color: #475569;
-  margin-top: 6px;
-}
-
-.steps {
-  margin: 12px 0 0 20px;
-  color: #334155;
-  padding-left: 12px;
+  .album-detail {
+    grid-template-columns: 1fr;
+  }
 }

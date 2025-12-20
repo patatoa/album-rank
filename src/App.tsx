@@ -1,53 +1,72 @@
-import "./index.css";
+import { Link, Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { ReactNode } from "react";
+import AddPage from "./pages/AddPage";
+import RankingPage from "./pages/RankingPage";
+import AlbumPage from "./pages/AlbumPage";
+import SignInPage from "./pages/SignInPage";
+import RankingLandingPage from "./pages/RankingLandingPage";
+import { useAuth } from "./lib/AuthProvider";
 
-const quickActions = [
-  { title: "Add albums", description: "Search iTunes or add manual entries with cover uploads." },
-  { title: "Build rankings", description: "Create year lists and custom lists with drag/drop ordering." },
-  { title: "This-or-that", description: "Run pairwise comparisons to refine Elo suggestions." }
-];
+const Nav = () => {
+  const location = useLocation();
+  const active = (path: string) => (location.pathname.startsWith(path) ? "nav-link active" : "nav-link");
 
-function App() {
   return (
-    <main className="page">
-      <header className="hero">
-        <p className="eyebrow">AlbumRanker v1</p>
-        <h1>Track albums, rank them, and compare what you love.</h1>
-        <p className="lede">
-          React + Supabase starter aligned to the spec in AGENTS.md. Hook up your Supabase project,
-          then build the add, ranking grid, and album detail routes.
-        </p>
-        <div className="cta-row">
-          <button className="button primary">Start building</button>
-          <button className="button ghost">View spec</button>
+    <nav className="nav">
+      <Link to="/add" className={active("/add")}>
+        Add
+      </Link>
+      <Link to="/rankings" className={active("/rankings")}>
+        Rankings
+      </Link>
+    </nav>
+  );
+};
+
+const Layout = ({ children }: { children: ReactNode }) => {
+  const { signOut, user } = useAuth();
+  return (
+    <div className="page">
+      <header className="topbar">
+        <div className="logo">
+          <span className="logo-dot" /> AlbumRanker
+        </div>
+        <div className="nav-group">
+          <Nav />
+          {user && (
+            <button className="button ghost" onClick={() => signOut()}>
+              Sign out
+            </button>
+          )}
         </div>
       </header>
+      {children}
+    </div>
+  );
+};
 
-      <section className="card">
-        <div className="card-header">
-          <h2>What is here</h2>
-          <p>Vite + React + TS scaffold, Supabase folders, and Edge Function stubs.</p>
-        </div>
-        <div className="grid">
-          {quickActions.map((item) => (
-            <div className="pill" key={item.title}>
-              <div className="pill-title">{item.title}</div>
-              <div className="pill-desc">{item.description}</div>
-            </div>
-          ))}
-        </div>
-      </section>
+function App() {
+  const { session, loading } = useAuth();
 
-      <section className="card">
-        <div className="card-header">
-          <h2>Next steps</h2>
-          <ol className="steps">
-            <li>Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in .env.local.</li>
-            <li>Run Supabase locally with supabase start and apply migrations.</li>
-            <li>Implement the /add, /rankings/:id, and /albums/:id flows.</li>
-          </ol>
-        </div>
-      </section>
-    </main>
+  if (loading) {
+    return <div className="page"><div className="card">Loading session…</div></div>;
+  }
+
+  if (!session) {
+    return <SignInPage />;
+  }
+
+  return (
+    <Layout>
+      <Routes>
+        <Route path="/" element={<Navigate to="/add" replace />} />
+        <Route path="/add" element={<AddPage />} />
+        <Route path="/rankings/:rankingListId" element={<RankingPage />} />
+        <Route path="/rankings" element={<RankingLandingPage />} />
+        <Route path="/albums/:albumId" element={<AlbumPage />} />
+        <Route path="*" element={<Navigate to="/add" replace />} />
+      </Routes>
+    </Layout>
   );
 }
 
