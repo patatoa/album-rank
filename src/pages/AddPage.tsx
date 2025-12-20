@@ -99,6 +99,10 @@ const AddPage = () => {
       } else {
         navigate(`/albums/${data.albumId}`);
       }
+    },
+    onError: (err) => {
+      console.error("Failed to ingest iTunes album", err);
+      alert("Failed to add album. Please try again.");
     }
   });
 
@@ -111,6 +115,10 @@ const AddPage = () => {
       } else {
         navigate(`/albums/${data.albumId}`);
       }
+    },
+    onError: (err) => {
+      console.error("Failed to create manual album", err);
+      alert("Failed to add album. Please try again.");
     }
   });
 
@@ -200,6 +208,11 @@ const AddPage = () => {
           {searchResults?.map((r: any) => (
             <SearchResult key={r.collectionId} result={r} onSelect={handleSelectItunes} />
           ))}
+          {ingestMutation.isPending && (
+            <div className="muted">
+              <span className="spinner" /> Adding album…
+            </div>
+          )}
         </div>
       </section>
 

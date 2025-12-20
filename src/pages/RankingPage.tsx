@@ -83,13 +83,13 @@ const RankingPage = () => {
       .catch((err) => console.error("ensureRankingLists failed", err));
   }, [queryClient]);
 
-  const { data: ranking } = useQuery({
+  const { data: ranking, isLoading: rankingLoading } = useQuery({
     queryKey: ["ranking", rankingListId],
     queryFn: () => getRankingList(rankingListId ?? ""),
     enabled: !!rankingListId
   });
 
-  const { data: itemsData } = useQuery({
+  const { data: itemsData, isLoading: itemsLoading } = useQuery({
     queryKey: ["rankingItems", rankingListId],
     queryFn: () => getRankingItems(rankingListId ?? ""),
     enabled: !!rankingListId
@@ -178,8 +178,9 @@ const RankingPage = () => {
             </button>
           </div>
         </header>
-        {sortedItems.length === 0 && <div className="muted">No albums yet. Add some on the /add page.</div>}
-        {sortedItems.length > 0 && (
+        {(rankingLoading || itemsLoading) && <div className="muted">Loading ranking…</div>}
+        {!itemsLoading && sortedItems.length === 0 && <div className="muted">No albums yet. Add some on the /add page.</div>}
+        {!itemsLoading && sortedItems.length > 0 && (
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
             <SortableContext items={sortedItems.map((i) => i.album_id)} strategy={horizontalListSortingStrategy}>
               <div className="album-grid">
