@@ -10,6 +10,12 @@ dist
 .env
 .env.*
 !/.env.example
+AGENTS.md
 
 # Supabase local env
 supabase/functions/.env.local
+
+# Supabase CLI artifacts
+supabase/.branches
+supabase/.temp
+supabase/functions/.edge

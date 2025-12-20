@@ -31,13 +31,26 @@ const parseYear = (date?: string | null) => {
   return Number.isNaN(year) ? null : year;
 };
 
-const uploadImage = async (path: string, url: string, serviceClient: ReturnType<typeof createServiceClient>) => {
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`Failed to fetch artwork: ${url}`);
+const fetchArtworkBytes = async (primaryUrl: string) => {
+  // Try to request a higher-res version by swapping the size in the URL (iTunes convention).
+  const deriveLarge = (url: string) => url.replace(/\/[0-9]+x[0-9]+bb\./, "/1000x1000bb.");
+  const candidates = [deriveLarge(primaryUrl), primaryUrl];
+
+  for (const url of candidates) {
+    const response = await fetch(url);
+    if (response.ok) {
+      return response.arrayBuffer();
+    }
   }
 
-  const bytes = await response.arrayBuffer();
+  throw new Error("Failed to fetch artwork from provided URLs");
+};
+
+const uploadImage = async (
+  path: string,
+  bytes: ArrayBuffer,
+  serviceClient: ReturnType<typeof createServiceClient>
+) => {
   const { error } = await serviceClient.storage.from(bucket).upload(path, bytes, {
     upsert: true,
     contentType: "image/jpeg"
@@ -91,6 +104,7 @@ serve(async (req) => {
     let albumId: string;
     let createdAlbum = false;
     let needsArtwork = false;
+    let createdRankingItem = false;
 
     if (!existingAlbum) {
       const { data, error } = await serviceClient
@@ -124,8 +138,9 @@ serve(async (req) => {
       const thumbPath = `itunes/${collectionId}/thumb.jpg`;
       const mediumPath = `itunes/${collectionId}/medium.jpg`;
 
-      await uploadImage(thumbPath, body.itunes.artworkUrl60, serviceClient);
-      await uploadImage(mediumPath, body.itunes.artworkUrl100, serviceClient);
+      const artworkBytes = await fetchArtworkBytes(body.itunes.artworkUrl100);
+      await uploadImage(thumbPath, artworkBytes, serviceClient);
+      await uploadImage(mediumPath, artworkBytes, serviceClient);
 
       const { error } = await serviceClient
         .from("albums")
@@ -153,8 +168,6 @@ serve(async (req) => {
     if (userAlbumError) {
       return errorResponse(userAlbumError.message, 500);
     }
-
-    let createdRankingItem = false;
 
     if (includeInRanking && body.targetRankingListId) {
       const rankingListId = body.targetRankingListId;
@@ -222,6 +235,87 @@ serve(async (req) => {
       if (eloError) {
         return errorResponse(eloError.message, 500);
       }
+    }
+
+    const getOrCreateAllTimeList = async () => {
+      const { data: existing, error: selectError } = await serviceClient
+        .from("ranking_lists")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("kind", "custom")
+        .eq("name", "All Time")
+        .maybeSingle();
+
+      if (selectError) {
+        throw selectError;
+      }
+
+      if (existing) return existing.id as string;
+
+      const { data: inserted, error: insertError } = await serviceClient
+        .from("ranking_lists")
+        .insert({ user_id: user.id, kind: "custom", name: "All Time" })
+        .select("id")
+        .single();
+
+      if (insertError || !inserted) {
+        throw insertError ?? new Error("Failed to create All Time ranking");
+      }
+
+      return inserted.id as string;
+    };
+
+    const ensureRankingItem = async (rankingListId: string) => {
+      const { data: existingItem, error: itemError } = await serviceClient
+        .from("ranking_items")
+        .select("position")
+        .eq("ranking_list_id", rankingListId)
+        .eq("album_id", albumId)
+        .maybeSingle();
+
+      if (itemError) throw itemError;
+      if (existingItem) return false;
+
+      const { data: maxRow, error: maxError } = await serviceClient
+        .from("ranking_items")
+        .select("position")
+        .eq("ranking_list_id", rankingListId)
+        .order("position", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (maxError) throw maxError;
+
+      const nextPosition = (maxRow?.position ?? 0) + 1;
+      const { error: insertError } = await serviceClient.from("ranking_items").insert({
+        ranking_list_id: rankingListId,
+        album_id: albumId,
+        position: nextPosition
+      });
+
+      if (insertError) throw insertError;
+
+      const { error: eloError } = await serviceClient
+        .from("elo_ratings")
+        .upsert(
+          { ranking_list_id: rankingListId, album_id: albumId },
+          { onConflict: "ranking_list_id,album_id" }
+        );
+
+      if (eloError) throw eloError;
+
+      return true;
+    };
+
+    try {
+      const allTimeListId = await getOrCreateAllTimeList();
+      const addedAllTime = await ensureRankingItem(allTimeListId);
+      if (addedAllTime) {
+        createdRankingItem = true;
+      }
+    } catch (err) {
+      console.error("Failed to ensure All Time ranking", err);
+      // Do not fail the whole ingest; best-effort
     }
 
     return jsonResponse({
