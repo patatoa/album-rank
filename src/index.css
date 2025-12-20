@@ -229,6 +229,22 @@ body {
   color: #6b7280;
 }
 
+.spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid #cbd5e1;
+  border-top-color: #0ea5e9;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  display: inline-block;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .album-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));

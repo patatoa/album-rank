@@ -95,7 +95,11 @@ const AlbumPage = () => {
 
   const updateUserAlbumMutation = useMutation({
     mutationFn: upsertUserAlbum,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["album", albumId] })
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["album", albumId] }),
+    onError: (err) => {
+      console.error("Failed to update album status/notes", err);
+      alert("Failed to save status or notes.");
+    }
   });
 
   const toggleMembership = async () => {
@@ -139,6 +143,10 @@ const AlbumPage = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["rankingItems", selectedRanking] });
       queryClient.invalidateQueries({ queryKey: ["albumMemberships", albumId] });
+    },
+    onError: (err) => {
+      console.error("Comparison failed", err);
+      alert("Failed to submit comparison.");
     }
   });
 
@@ -176,8 +184,14 @@ const AlbumPage = () => {
     if (candidates.length === 0) {
       setOpponent(null);
     } else {
-      const idx = Math.floor(Math.random() * candidates.length);
-      setOpponent(candidates[idx]);
+      const current = orderedItems.find((i) => i.album_id === albumId);
+      candidates.sort((a, b) =>
+        Math.abs((a.position ?? 0) - (current?.position ?? 0)) -
+        Math.abs((b.position ?? 0) - (current?.position ?? 0))
+      );
+      const top = candidates.slice(0, Math.min(3, candidates.length));
+      const idx = Math.floor(Math.random() * top.length);
+      setOpponent(top[idx]);
     }
   };
 
