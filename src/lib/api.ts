@@ -85,8 +85,28 @@ export const getRankingItems = async (rankingListId: string): Promise<RankingIte
   return (data ?? []) as unknown as RankingItem[];
 };
 
-export const reorderRanking = (payload: { rankingListId: string; orderedAlbumIds: string[] }) =>
-  edgeInvoke<{ ok: boolean }>("ranking_reorder", payload);
+export const reorderRanking = async (payload: { rankingListId: string; orderedAlbumIds: string[] }) => {
+  // Two-phase update to avoid position unique conflicts: bump positions, then set final order
+  const tempOffset = 1000;
+  for (let i = 0; i < payload.orderedAlbumIds.length; i++) {
+    const albumId = payload.orderedAlbumIds[i];
+    const { error } = await supabase
+      .from("ranking_items")
+      .update({ position: tempOffset + i + 1 })
+      .eq("ranking_list_id", payload.rankingListId)
+      .eq("album_id", albumId);
+    if (error) throw error;
+  }
+  for (let i = 0; i < payload.orderedAlbumIds.length; i++) {
+    const albumId = payload.orderedAlbumIds[i];
+    const { error } = await supabase
+      .from("ranking_items")
+      .update({ position: i + 1 })
+      .eq("ranking_list_id", payload.rankingListId)
+      .eq("album_id", albumId);
+    if (error) throw error;
+  }
+};
 
 export const getAlbumDetail = async (albumId: string): Promise<{ album: Album; userAlbum: UserAlbum | null }> => {
   const { data: album, error: albumError } = await supabase.from("albums").select("*").eq("id", albumId).single();
@@ -103,7 +123,10 @@ export const getAlbumDetail = async (albumId: string): Promise<{ album: Album; u
 };
 
 export const upsertUserAlbum = async (payload: Partial<UserAlbum> & { album_id: string }) => {
-  const { data, error } = await supabase.from("user_albums").upsert(payload, { onConflict: "user_id,album_id" });
+  const userId = await getUserId();
+  const { data, error } = await supabase
+    .from("user_albums")
+    .upsert({ ...payload, user_id: userId }, { onConflict: "user_id,album_id" });
   if (error) throw error;
   return data;
 };
@@ -117,7 +140,7 @@ export const submitComparison = (payload: {
   edgeInvoke<{
     left: { albumId: string; rating: number; matches: number };
     right: { albumId: string; rating: number; matches: number };
-      }>("comparison_submit", payload);
+  }>("comparison_submit", payload);
 
 export const getAlbumMemberships = async (albumId: string) => {
   const { data, error } = await supabase

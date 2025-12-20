@@ -6,6 +6,7 @@ import {
   jsonResponse,
   requireUser
 } from "../_shared/supabaseClients.ts";
+import { calculateElo } from "../_shared/elo.ts";
 
 type RequestBody = {
   rankingListId: string;
@@ -15,9 +16,6 @@ type RequestBody = {
 };
 
 const K = 32;
-
-const expectedScore = (ratingA: number, ratingB: number) =>
-  1 / (1 + Math.pow(10, (ratingB - ratingA) / 400));
 
 serve(async (req) => {
   if (req.method !== "POST") {
@@ -75,14 +73,8 @@ serve(async (req) => {
     const left = await ensureRating(body.leftAlbumId);
     const right = await ensureRating(body.rightAlbumId);
 
-    const leftExpected = expectedScore(left.rating, right.rating);
-    const rightExpected = expectedScore(right.rating, left.rating);
-
-    const leftScore = body.winnerAlbumId === body.leftAlbumId ? 1 : 0;
-    const rightScore = body.winnerAlbumId === body.rightAlbumId ? 1 : 0;
-
-    const leftNew = left.rating + K * (leftScore - leftExpected);
-    const rightNew = right.rating + K * (rightScore - rightExpected);
+    const winnerIsLeft = body.winnerAlbumId === body.leftAlbumId;
+    const { playerRating: leftNew, opponentRating: rightNew } = calculateElo(left.rating, right.rating, winnerIsLeft, K);
 
     const { error: comparisonError } = await serviceClient.from("comparisons").insert({
       ranking_list_id: body.rankingListId,
