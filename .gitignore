@@ -1,0 +1,15 @@
+node_modules
+dist
+.DS_Store
+*.log
+.vite
+.vercel
+.supabase
+
+# Env files
+.env
+.env.*
+!/.env.example
+
+# Supabase local env
+supabase/functions/.env.local
