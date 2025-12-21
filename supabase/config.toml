@@ -10,8 +10,8 @@ additional_redirect_urls = ["http://localhost:5173"]
 
 [auth.external.google]
 enabled = true
-client_id = "***REDACTED***"
-secret = "***REDACTED***"
+client_id = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID)"
+secret = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET)"
 
 [api]
 enabled = true
