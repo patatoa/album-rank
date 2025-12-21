@@ -1,5 +1,5 @@
 import { supabase } from "./supabaseClient";
-import { Album, RankingItem, RankingList, UserAlbum } from "../types";
+import { Album, RankingItem, RankingList, UserAlbum, UserPreferences } from "../types";
 
 const edgeInvoke = async <T>(name: string, body: Record<string, unknown>) => {
   const {
@@ -251,4 +251,25 @@ export const ensureRankingLists = async (years: number[], custom: string[] = [])
   }
 
   return getRankingLists();
+};
+
+export const getUserPreferences = async (): Promise<UserPreferences> => {
+  const userId = await getUserId();
+  const { data, error } = await supabase
+    .from("user_preferences")
+    .select("user_id, intro_dismissed, updated_at")
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (error && error.code !== "PGRST116") {
+    throw error;
+  }
+  return (data as UserPreferences) ?? { user_id: userId, intro_dismissed: false };
+};
+
+export const dismissIntroBubble = async (): Promise<void> => {
+  const userId = await getUserId();
+  const { error } = await supabase
+    .from("user_preferences")
+    .upsert({ user_id: userId, intro_dismissed: true, updated_at: new Date().toISOString() });
+  if (error) throw error;
 };

@@ -217,6 +217,7 @@ body {
   border: 1px dashed var(--border);
   padding: 10px;
   cursor: pointer;
+  color: var(--text);
 }
 
 .result img {
@@ -227,6 +228,7 @@ body {
 
 .result-title {
   font-weight: 800;
+  color: var(--text);
 }
 
 .result-artist {
@@ -343,6 +345,32 @@ body {
   grid-template-columns: 220px 1fr;
   gap: 14px;
   align-items: flex-start;
+}
+
+.info-bubble {
+  position: relative;
+  margin: 12px 0;
+  padding: 12px 14px;
+  border: 1px dashed var(--border);
+  background: var(--panel);
+  border-radius: 10px;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.08);
+}
+
+.info-bubble p {
+  margin: 0 0 6px 0;
+  color: var(--text);
+}
+
+.bubble-close {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 16px;
 }
 
 .album-detail img {

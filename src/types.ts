@@ -20,6 +20,12 @@ export type UserAlbum = {
   notes: string;
 };
 
+export type UserPreferences = {
+  user_id: string;
+  intro_dismissed: boolean;
+  updated_at?: string;
+};
+
 export type RankingList = {
   id: string;
   user_id: string;

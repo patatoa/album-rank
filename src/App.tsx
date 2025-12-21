@@ -8,6 +8,7 @@ import RankingLandingPage from "./pages/RankingLandingPage";
 import PublicRankingPage from "./pages/PublicRankingPage";
 import { useAuth } from "./lib/AuthProvider";
 import { useTheme } from "./lib/theme";
+import InfoBubble from "./components/InfoBubble";
 
 const Nav = () => {
   const location = useLocation();
@@ -44,6 +45,7 @@ const Layout = ({ children }: { children: ReactNode }) => {
           )}
         </div>
       </header>
+      <InfoBubble />
       {children}
     </div>
   );
