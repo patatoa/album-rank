@@ -307,7 +307,22 @@ body {
   padding: 6px 10px;
   border: 1px dashed var(--border);
   background: var(--panel);
+  color: var(--text);
+  font-weight: 600;
   cursor: pointer;
+}
+
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 32px;
+}
+
+.icon-btn svg {
+  width: 18px;
+  height: 18px;
 }
 
 .pill-btn.active {

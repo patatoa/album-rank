@@ -5,6 +5,7 @@ import RankingPage from "./pages/RankingPage";
 import AlbumPage from "./pages/AlbumPage";
 import SignInPage from "./pages/SignInPage";
 import RankingLandingPage from "./pages/RankingLandingPage";
+import PublicRankingPage from "./pages/PublicRankingPage";
 import { useAuth } from "./lib/AuthProvider";
 import { useTheme } from "./lib/theme";
 
@@ -55,8 +56,14 @@ function App() {
     return <div className="page"><div className="card">Loading session…</div></div>;
   }
 
+  // Allow public share page without auth
   if (!session) {
-    return <SignInPage />;
+    return (
+      <Routes>
+        <Route path="/share/:slug" element={<PublicRankingPage />} />
+        <Route path="*" element={<SignInPage />} />
+      </Routes>
+    );
   }
 
   return (
@@ -67,6 +74,7 @@ function App() {
         <Route path="/rankings/:rankingListId" element={<RankingPage />} />
         <Route path="/rankings" element={<RankingLandingPage />} />
         <Route path="/albums/:albumId" element={<AlbumPage />} />
+        <Route path="/share/:slug" element={<PublicRankingPage />} />
         <Route path="*" element={<Navigate to="/add" replace />} />
       </Routes>
     </Layout>

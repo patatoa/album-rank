@@ -108,6 +108,24 @@ export const reorderRanking = async (payload: { rankingListId: string; orderedAl
   }
 };
 
+export const shareRanking = async (rankingListId: string) => {
+  const { data, error } = await supabase.functions.invoke<{ publicSlug: string; isPublic: boolean }>(
+    "ranking_share",
+    { body: { rankingListId, action: "share" } }
+  );
+  if (error) throw error;
+  return data;
+};
+
+export const unshareRanking = async (rankingListId: string) => {
+  const { data, error } = await supabase.functions.invoke<{ publicSlug: string | null; isPublic: boolean }>(
+    "ranking_share",
+    { body: { rankingListId, action: "unshare" } }
+  );
+  if (error) throw error;
+  return data;
+};
+
 export const getAlbumDetail = async (albumId: string): Promise<{ album: Album; userAlbum: UserAlbum | null }> => {
   const { data: album, error: albumError } = await supabase.from("albums").select("*").eq("id", albumId).single();
   if (albumError) throw albumError;

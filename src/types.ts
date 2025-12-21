@@ -26,6 +26,10 @@ export type RankingList = {
   name: string;
   kind: "year" | "custom";
   year: number | null;
+  is_public?: boolean;
+  public_slug?: string | null;
+  created_at?: string;
+  updated_at?: string;
 };
 
 export type RankingItem = {
