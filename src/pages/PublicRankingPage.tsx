@@ -27,10 +27,6 @@ const PublicRankingPage = () => {
     enabled: !!slug
   });
 
-  if (data) {
-    console.log("public ranking", data);
-  }
-
   if (isLoading) return <div className="card">Loading ranking…</div>;
   if (isError || !data)
     return (
