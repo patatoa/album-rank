@@ -19,6 +19,8 @@ const RankingLandingPage = () => {
         queryClient.setQueryData(["rankingLists"], lists);
         if (lists.length > 0) {
           navigate(`/rankings/${lists[0].id}`, { replace: true });
+        } else {
+          navigate("/add", { replace: true });
         }
       })
       .catch((err) => {

@@ -51,13 +51,7 @@ const SortableCard = ({ item }: { item: RankingItem }) => {
     <div className="album-card" ref={setNodeRef} style={style} {...attributes} {...listeners}>
       <div className="album-rank">#{item.position}</div>
       {album ? (
-        <>
-          <img src={albumImage(album.artwork_thumb_path)} alt={album.title} />
-          <div className="album-meta">
-            <div className="album-title">{album.title}</div>
-            <div className="album-artist">{album.artist}</div>
-          </div>
-        </>
+        <img src={albumImage(album.artwork_thumb_path)} alt={album.title} />
       ) : (
         <div className="album-meta">Missing album data</div>
       )}
@@ -70,6 +64,7 @@ const RankingPage = () => {
   const navigate = useNavigate();
   const [sortMode, setSortMode] = useState<"rank" | "added">("rank");
   const [localItems, setLocalItems] = useState<RankingItem[]>([]);
+  const [previousOrder, setPreviousOrder] = useState<string[] | null>(null);
   const queryClient = useQueryClient();
 
   const { data: rankingLists } = useQuery({
@@ -131,6 +126,8 @@ const RankingPage = () => {
     if (sortMode === "added") return;
     const { active, over } = event;
     if (!over || active.id === over.id) return;
+
+    setPreviousOrder(localItems.map((i) => i.album_id));
 
     const currentIndex = localItems.findIndex((item) => item.album_id === active.id);
     const overIndex = localItems.findIndex((item) => item.album_id === over.id);
@@ -195,6 +192,22 @@ const RankingPage = () => {
         )}
 
       </section>
+      {previousOrder && (
+        <div className="card">
+          <div className="pill-row">
+            <button
+              className="button ghost"
+              onClick={() => {
+                if (!rankingListId || !previousOrder) return;
+                reorderMutation.mutate({ rankingListId, orderedAlbumIds: previousOrder });
+                setPreviousOrder(null);
+              }}
+            >
+              Undo last reorder
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -62,7 +62,7 @@ function App() {
   return (
     <Layout>
       <Routes>
-        <Route path="/" element={<Navigate to="/add" replace />} />
+        <Route path="/" element={<Navigate to="/rankings" replace />} />
         <Route path="/add" element={<AddPage />} />
         <Route path="/rankings/:rankingListId" element={<RankingPage />} />
         <Route path="/rankings" element={<RankingLandingPage />} />
