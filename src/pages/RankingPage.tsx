@@ -233,26 +233,25 @@ const RankingPage = () => {
                 </button>
               ) : (
                 <>
-                  <button
-                    className="button ghost icon-btn"
-                    aria-label="Make private"
-                    onClick={() => rankingListId && unshareMutation.mutate(rankingListId)}
-                    disabled={unshareMutation.isPending}
-                  >
-                    <FiEyeOff />
-                  </button>
-                  {publicSlug && (
-                    <div className="pill-row">
-                      <span className="pill">{`${window.location.origin}/share/${publicSlug}`}</span>
+                  <div className="pill-row">
+                    {publicSlug && (
                       <button
-                        className="pill-btn icon-btn"
-                        aria-label="Copy share link"
-                        onClick={() => copyLink(publicSlug)}
+                        className="button icon-btn"
+                        aria-label="Share link"
+                        onClick={() => shareLink(publicSlug)}
                       >
-                        <FiClipboard />
+                        <FiShare2 />
                       </button>
-                    </div>
-                  )}
+                    )}
+                    <button
+                      className="button ghost icon-btn"
+                      aria-label="Make private"
+                      onClick={() => rankingListId && unshareMutation.mutate(rankingListId)}
+                      disabled={unshareMutation.isPending}
+                    >
+                      <FiEyeOff />
+                    </button>
+                  </div>
                 </>
               )}
             </div>

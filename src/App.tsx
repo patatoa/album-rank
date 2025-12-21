@@ -32,7 +32,7 @@ const Layout = ({ children }: { children: ReactNode }) => {
   return (
     <div className="page">
       <header className="topbar">
-        <div className="logo">[ album-ranker ]</div>
+        <div className="logo">[ album-rank ]</div>
         <div className="nav-group">
           <Nav />
           <button className="button ghost" onClick={toggleTheme} aria-label="Toggle theme">

@@ -32,14 +32,35 @@ const PublicRankingPage = () => {
   }
 
   if (isLoading) return <div className="card">Loading ranking…</div>;
-  if (isError || !data) return <div className="card">Ranking not found or not public.</div>;
+  if (isError || !data)
+    return (
+      <div className="page public-wrap">
+        <section className="card">
+          <p className="eyebrow">Share</p>
+          <div className="muted">Ranking not found or not public.</div>
+          <div className="pill-row" style={{ marginTop: 12 }}>
+            <button className="button ghost" onClick={() => navigate("/add")}>
+              Sign in
+            </button>
+          </div>
+        </section>
+      </div>
+    );
 
   return (
-    <div className="page-grid">
+    <div className="page public-wrap">
       <section className="card">
         <header className="card-header">
-          <h2>{data.ranking.name}</h2>
-          {data.ranking.kind === "year" && data.ranking.year && <div className="pill">Year: {data.ranking.year}</div>}
+          <div className="flex-between">
+            <div>
+              <p className="eyebrow">Shared ranking</p>
+              <h2>{data.ranking.name}</h2>
+              {data.ranking.kind === "year" && data.ranking.year && <div className="pill">Year: {data.ranking.year}</div>}
+            </div>
+            <button className="button ghost" onClick={() => navigate("/add")}>
+              Sign in
+            </button>
+          </div>
         </header>
         {data.items.length === 0 && <div className="muted">No albums yet.</div>}
         {data.items.length > 0 && (

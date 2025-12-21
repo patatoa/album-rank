@@ -20,10 +20,14 @@ const SignInPage = () => {
   return (
     <div className="auth-shell">
       <div className="card auth-card">
-        <h1>Sign in to AlbumRanker</h1>
-        <p className="muted">Use Google SSO to start adding and ranking albums.</p>
+        <h1>Sign in</h1>
+        <p className="muted">Sign in using Google to rank albums!</p>
         {error && <div className="error">{error}</div>}
-        <button className="button primary" onClick={handleGoogle} disabled={loading}>
+        <button
+          className="button primary"
+          onClick={handleGoogle}
+          disabled={loading}
+        >
           {loading ? "Redirecting…" : "Continue with Google"}
         </button>
       </div>

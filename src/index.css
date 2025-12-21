@@ -6,7 +6,7 @@
   --border: #cdd0d5;
   --text: #0d1117;
   --muted: #4b5563;
-  --accent: #0ea5e9;
+  --accent: #8b5cf6;
   --shadow: rgba(0, 0, 0, 0.06);
 }
 
@@ -16,7 +16,7 @@
   --border: #1f2733;
   --text: #e5e7eb;
   --muted: #9ca3af;
-  --accent: #58c4ff;
+  --accent: #c084fc;
   --shadow: rgba(0, 0, 0, 0.4);
 }
 
@@ -45,6 +45,12 @@ body {
   background: var(--panel);
   padding: 10px 14px;
   box-shadow: 0 6px 20px var(--shadow);
+}
+
+.public-wrap {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 20px 16px 64px;
 }
 
 .logo {
@@ -371,6 +377,25 @@ body {
   color: var(--muted);
   cursor: pointer;
   font-size: 16px;
+}
+
+.bubble-header {
+  border: none;
+  background: transparent;
+  padding: 0;
+  color: var(--text);
+  cursor: pointer;
+}
+
+@media (max-width: 480px) {
+  .logo {
+    font-size: 14px;
+  }
+  .topbar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
 }
 
 .album-detail img {
