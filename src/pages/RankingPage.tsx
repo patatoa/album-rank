@@ -183,7 +183,7 @@ const RankingPage = () => {
 
   const unshareMutation = useMutation({
     mutationFn: unshareRanking,
-    onSuccess: (data) => {
+    onSuccess: () => {
       setPublicSlug(null);
       setIsPublic(false);
     },
