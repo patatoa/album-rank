@@ -10,7 +10,7 @@ Quickstart for local dev:
    - `SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID`
    - `SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET`
 3) Supabase local:
-   - Configure Google in `supabase/config.toml` (site_url/redirects), then `supabase start`
+   - Configure Google via env (`SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID` / `SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET`) and set site_url/redirects, then `supabase start`
    - Rerun `supabase db reset` to apply migrations (creates bucket/policies)
    - Functions: `supabase functions serve --env-file supabase/functions/.env.local` with `SERVICE_ROLE_KEY=<local service role>`
 4) Run app: `npm run dev` and sign in with Google (local config).
