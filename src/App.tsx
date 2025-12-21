@@ -6,6 +6,7 @@ import AlbumPage from "./pages/AlbumPage";
 import SignInPage from "./pages/SignInPage";
 import RankingLandingPage from "./pages/RankingLandingPage";
 import { useAuth } from "./lib/AuthProvider";
+import { useTheme } from "./lib/theme";
 
 const Nav = () => {
   const location = useLocation();
@@ -25,14 +26,16 @@ const Nav = () => {
 
 const Layout = ({ children }: { children: ReactNode }) => {
   const { signOut, user } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   return (
     <div className="page">
       <header className="topbar">
-        <div className="logo">
-          <span className="logo-dot" /> AlbumRanker
-        </div>
+        <div className="logo">[ album-ranker ]</div>
         <div className="nav-group">
           <Nav />
+          <button className="button ghost" onClick={toggleTheme} aria-label="Toggle theme">
+            {theme === "light" ? "☀" : "☾"}
+          </button>
           {user && (
             <button className="button ghost" onClick={() => signOut()}>
               Sign out

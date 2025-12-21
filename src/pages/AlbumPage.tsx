@@ -215,9 +215,11 @@ const AlbumPage = () => {
           <div className="detail-meta">
             <div className="pill">Release: {album.release_year ?? "Unknown"}</div>
             {album.provider === "itunes" && album.itunes_url && (
-              <a className="pill link" href={album.itunes_url} target="_blank" rel="noreferrer">
-                View on Apple
-              </a>
+              <div>
+                <a className="pill link small" href={album.itunes_url} target="_blank" rel="noreferrer">
+                  View on Apple
+                </a>
+              </div>
             )}
             <label className="field">
               <span>Status</span>

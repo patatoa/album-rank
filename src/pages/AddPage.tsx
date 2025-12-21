@@ -1,7 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
-import { createManualAlbum, ensureRankingLists, getRankingLists, ingestItunesAlbum, searchItunes } from "../lib/api";
+import {
+  createManualAlbum,
+  ensureRankingLists,
+  getRankingLists,
+  ingestItunesAlbum,
+  searchItunes,
+} from "../lib/api";
 import { RankingList } from "../types";
 
 const debounce = (value: string, delay: number) => {
@@ -23,7 +29,7 @@ const yearLabel = defaultYearList();
 
 const SearchResult = ({
   result,
-  onSelect
+  onSelect,
 }: {
   result: any;
   onSelect: (payload: any) => void;
@@ -41,7 +47,9 @@ const AddPage = () => {
   const [term, setTerm] = useState("");
   const debounced = debounce(term, 300);
   const [includeInRanking, setIncludeInRanking] = useState(true);
-  const [targetRankingListId, setTargetRankingListId] = useState<string | null>(null);
+  const [targetRankingListId, setTargetRankingListId] = useState<string | null>(
+    null
+  );
 
   const [manualTitle, setManualTitle] = useState("");
   const [manualArtist, setManualArtist] = useState("");
@@ -53,7 +61,7 @@ const AddPage = () => {
 
   const { data: rankings } = useQuery({
     queryKey: ["rankingLists"],
-    queryFn: getRankingLists
+    queryFn: getRankingLists,
   });
 
   useEffect(() => {
@@ -79,7 +87,9 @@ const AddPage = () => {
 
   useEffect(() => {
     if (rankingOptions.length > 0 && !targetRankingListId) {
-      const yearMatch = rankingOptions.find((r) => r.kind === "year" && r.year === yearLabel);
+      const yearMatch = rankingOptions.find(
+        (r) => r.kind === "year" && r.year === yearLabel
+      );
       setTargetRankingListId(yearMatch?.id ?? rankingOptions[0]?.id ?? null);
     }
   }, [rankingOptions, targetRankingListId]);
@@ -87,13 +97,15 @@ const AddPage = () => {
   const { data: searchResults, isLoading } = useQuery({
     queryKey: ["itunesSearch", debounced],
     queryFn: () => searchItunes(debounced),
-    enabled: debounced.length > 2
+    enabled: debounced.length > 2,
   });
 
   const ingestMutation = useMutation({
     mutationFn: ingestItunesAlbum,
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["rankingItems", targetRankingListId] });
+      queryClient.invalidateQueries({
+        queryKey: ["rankingItems", targetRankingListId],
+      });
       if (includeInRanking && targetRankingListId) {
         navigate(`/rankings/${targetRankingListId}`);
       } else {
@@ -103,13 +115,15 @@ const AddPage = () => {
     onError: (err) => {
       console.error("Failed to ingest iTunes album", err);
       alert("Failed to add album. Please try again.");
-    }
+    },
   });
 
   const manualMutation = useMutation({
     mutationFn: createManualAlbum,
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["rankingItems", targetRankingListId] });
+      queryClient.invalidateQueries({
+        queryKey: ["rankingItems", targetRankingListId],
+      });
       if (includeInRanking && targetRankingListId) {
         navigate(`/rankings/${targetRankingListId}`);
       } else {
@@ -119,7 +133,7 @@ const AddPage = () => {
     onError: (err) => {
       console.error("Failed to create manual album", err);
       alert("Failed to add album. Please try again.");
-    }
+    },
   });
 
   const toBase64 = (file: File) =>
@@ -139,10 +153,10 @@ const AddPage = () => {
         releaseDate: result.releaseDate,
         artworkUrl60: result.artworkUrl60,
         artworkUrl100: result.artworkUrl100,
-        collectionViewUrl: result.collectionViewUrl
+        collectionViewUrl: result.collectionViewUrl,
       },
       targetRankingListId,
-      includeInRanking
+      includeInRanking,
     });
   };
 
@@ -157,7 +171,7 @@ const AddPage = () => {
       releaseYear: manualYear,
       coverBase64,
       targetRankingListId,
-      includeInRanking
+      includeInRanking,
     });
   };
 
@@ -166,13 +180,13 @@ const AddPage = () => {
       <section className="card">
         <header className="card-header">
           <p className="eyebrow">Add album</p>
-          <h2>Search iTunes</h2>
+          <h2>Search</h2>
           <p>Type to find albums, then choose how it counts toward rankings.</p>
         </header>
         <div className="form-row">
           <input
             className="input"
-            placeholder="Search iTunes albums…"
+            placeholder="Search albums…"
             value={term}
             onChange={(e) => setTerm(e.target.value)}
           />
@@ -202,11 +216,15 @@ const AddPage = () => {
         </div>
         <div className="results">
           {isLoading && <div className="muted">Searching…</div>}
-          {!isLoading && searchResults?.length === 0 && debounced.length > 2 && (
-            <div className="muted">No results</div>
-          )}
+          {!isLoading &&
+            searchResults?.length === 0 &&
+            debounced.length > 2 && <div className="muted">No results</div>}
           {searchResults?.map((r: any) => (
-            <SearchResult key={r.collectionId} result={r} onSelect={handleSelectItunes} />
+            <SearchResult
+              key={r.collectionId}
+              result={r}
+              onSelect={handleSelectItunes}
+            />
           ))}
           {ingestMutation.isPending && (
             <div className="muted">
@@ -226,11 +244,21 @@ const AddPage = () => {
           <div className="form-grid">
             <label className="field">
               <span>Title</span>
-              <input className="input" value={manualTitle} onChange={(e) => setManualTitle(e.target.value)} required />
+              <input
+                className="input"
+                value={manualTitle}
+                onChange={(e) => setManualTitle(e.target.value)}
+                required
+              />
             </label>
             <label className="field">
               <span>Artist</span>
-              <input className="input" value={manualArtist} onChange={(e) => setManualArtist(e.target.value)} required />
+              <input
+                className="input"
+                value={manualArtist}
+                onChange={(e) => setManualArtist(e.target.value)}
+                required
+              />
             </label>
             <label className="field">
               <span>Release year</span>
@@ -238,15 +266,29 @@ const AddPage = () => {
                 className="input"
                 type="number"
                 value={manualYear ?? ""}
-                onChange={(e) => setManualYear(e.target.value ? Number(e.target.value) : undefined)}
+                onChange={(e) =>
+                  setManualYear(
+                    e.target.value ? Number(e.target.value) : undefined
+                  )
+                }
               />
             </label>
           </div>
           <label className="field">
-            <span>Cover image (used for thumb + medium)</span>
-            <input className="input" type="file" accept="image/*" onChange={(e) => setCoverFile(e.target.files?.[0] ?? null)} required />
+            <span>Cover image</span>
+            <input
+              className="input"
+              type="file"
+              accept="image/*"
+              onChange={(e) => setCoverFile(e.target.files?.[0] ?? null)}
+              required
+            />
           </label>
-          <button className="button primary" type="submit" disabled={(manualMutation as any).isPending}>
+          <button
+            className="button primary"
+            type="submit"
+            disabled={(manualMutation as any).isPending}
+          >
             {(manualMutation as any).isPending ? "Saving…" : "Create album"}
           </button>
         </form>
