@@ -1,8 +1,4 @@
--- Ensure unique index exists for (user_id, name) to support upsert on custom ranking lists
-create unique index if not exists ranking_lists_user_name_unique
-on public.ranking_lists (user_id, name);
-
--- Add public slug and visibility
+-- Add public sharing columns and index for ranking lists
 alter table public.ranking_lists
   add column if not exists public_slug text,
   add column if not exists is_public boolean default false;

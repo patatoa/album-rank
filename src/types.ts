@@ -20,12 +20,22 @@ export type UserAlbum = {
   notes: string;
 };
 
+export type UserPreferences = {
+  user_id: string;
+  intro_dismissed: boolean;
+  updated_at?: string;
+};
+
 export type RankingList = {
   id: string;
   user_id: string;
   name: string;
   kind: "year" | "custom";
   year: number | null;
+  is_public?: boolean;
+  public_slug?: string | null;
+  created_at?: string;
+  updated_at?: string;
 };
 
 export type RankingItem = {

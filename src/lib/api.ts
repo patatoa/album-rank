@@ -1,5 +1,5 @@
 import { supabase } from "./supabaseClient";
-import { Album, RankingItem, RankingList, UserAlbum } from "../types";
+import { Album, RankingItem, RankingList, UserAlbum, UserPreferences } from "../types";
 
 const edgeInvoke = async <T>(name: string, body: Record<string, unknown>) => {
   const {
@@ -106,6 +106,24 @@ export const reorderRanking = async (payload: { rankingListId: string; orderedAl
       .eq("album_id", albumId);
     if (error) throw error;
   }
+};
+
+export const shareRanking = async (rankingListId: string) => {
+  const { data, error } = await supabase.functions.invoke<{ publicSlug: string; isPublic: boolean }>(
+    "ranking_share",
+    { body: { rankingListId, action: "share" } }
+  );
+  if (error) throw error;
+  return data;
+};
+
+export const unshareRanking = async (rankingListId: string) => {
+  const { data, error } = await supabase.functions.invoke<{ publicSlug: string | null; isPublic: boolean }>(
+    "ranking_share",
+    { body: { rankingListId, action: "unshare" } }
+  );
+  if (error) throw error;
+  return data;
 };
 
 export const getAlbumDetail = async (albumId: string): Promise<{ album: Album; userAlbum: UserAlbum | null }> => {
@@ -233,4 +251,25 @@ export const ensureRankingLists = async (years: number[], custom: string[] = [])
   }
 
   return getRankingLists();
+};
+
+export const getUserPreferences = async (): Promise<UserPreferences> => {
+  const userId = await getUserId();
+  const { data, error } = await supabase
+    .from("user_preferences")
+    .select("user_id, intro_dismissed, updated_at")
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (error && error.code !== "PGRST116") {
+    throw error;
+  }
+  return (data as UserPreferences) ?? { user_id: userId, intro_dismissed: false };
+};
+
+export const dismissIntroBubble = async (): Promise<void> => {
+  const userId = await getUserId();
+  const { error } = await supabase
+    .from("user_preferences")
+    .upsert({ user_id: userId, intro_dismissed: true, updated_at: new Date().toISOString() });
+  if (error) throw error;
 };
