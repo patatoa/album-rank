@@ -4,7 +4,8 @@ import {
   createServiceClient,
   errorResponse,
   jsonResponse,
-  requireUser
+  requireUser,
+  handleOptions
 } from "../_shared/supabaseClients.ts";
 import { calculateElo } from "../_shared/elo.ts";
 
@@ -18,6 +19,8 @@ type RequestBody = {
 const K = 32;
 
 serve(async (req) => {
+  const opt = handleOptions(req);
+  if (opt) return opt;
   if (req.method !== "POST") {
     return errorResponse("Method not allowed", 405);
   }

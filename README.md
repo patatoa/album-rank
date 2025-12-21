@@ -18,5 +18,8 @@ Seeds (optional):
 - `supabase/seed.sql` includes commented sample inserts; set your local user_id (from `auth.users`) before using. Running `supabase db reset` will try to load it if uncommented.
 
 Workflows:
-- Dev/Prod deploy workflows live in `.github/workflows/deploy-dev.yml` and `deploy-prod.yml`.
+- Dev/Prod deploy workflows live in `.github/workflows/deploy-dev.yml` and `deploy-prod.yml`. Set environment secrets per GitHub Actions environments (dev/prod):
+  - `SUPABASE_ACCESS_TOKEN`
+  - `SUPABASE_PROJECT_ID`
+  - `SUPABASE_DB_PASSWORD`
 - PR CI runs lint + build via `.github/workflows/ci.yml`.

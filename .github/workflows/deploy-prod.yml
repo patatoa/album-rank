@@ -12,10 +12,11 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    environment: prod
     env:
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-      SUPABASE_PROJECT_ID: ${{ secrets.PROD_PROJECT_ID }}
-      SUPABASE_DB_PASSWORD: ${{ secrets.PROD_DB_PASSWORD }}
+      SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
 
     steps:
       - uses: actions/checkout@v4
