@@ -35,7 +35,7 @@ const PublicRankingPage = () => {
           <p className="eyebrow">Share</p>
           <div className="muted">Ranking not found or not public.</div>
           <div className="pill-row" style={{ marginTop: 12 }}>
-            <button className="button ghost" onClick={() => navigate("/add")}>
+            <button className="button ghost" onClick={() => navigate("/")}>
               Sign in
             </button>
           </div>
@@ -53,7 +53,7 @@ const PublicRankingPage = () => {
               <h2>{data.ranking.name}</h2>
               {data.ranking.kind === "year" && data.ranking.year && <div className="pill">Year: {data.ranking.year}</div>}
             </div>
-            <button className="button ghost" onClick={() => navigate("/add")}>
+            <button className="button ghost" onClick={() => navigate("/")}>
               Sign in
             </button>
           </div>

@@ -2,6 +2,7 @@ import { useLocation } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { dismissIntroBubble, getUserPreferences } from "../lib/api";
 import { useEffect, useState } from "react";
+import { UserPreferences } from "../types";
 
 const InfoBubble = () => {
   const location = useLocation();
@@ -26,8 +27,8 @@ const InfoBubble = () => {
   const dismissMutation = useMutation({
     mutationFn: dismissIntroBubble,
     onSuccess: () => {
-      queryClient.setQueryData(["userPreferences"], (prev) => ({
-        ...(prev as any),
+      queryClient.setQueryData<Partial<UserPreferences> | undefined>(["userPreferences"], (prev) => ({
+        ...prev,
         intro_dismissed: true
       }));
     }
