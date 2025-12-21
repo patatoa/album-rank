@@ -22,8 +22,8 @@ Seeds (optional):
 Workflows:
 - Dev/Prod deploy workflows live in `.github/workflows/deploy-dev.yml` and `deploy-prod.yml`. Set environment secrets per GitHub Actions environments (dev/prod):
   - `SUPABASE_ACCESS_TOKEN`
-- `SUPABASE_PROJECT_ID`
-- `SUPABASE_DB_PASSWORD`
+  - `SUPABASE_PROJECT_ID`
+  - `SUPABASE_DB_PASSWORD`
 - PR CI runs lint + build via `.github/workflows/ci.yml`.
 
 Security note:
