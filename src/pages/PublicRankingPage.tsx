@@ -66,7 +66,7 @@ const PublicRankingPage = () => {
         {data.items.length > 0 && (
           <div className="album-grid">
             {data.items.map((item) => (
-              <div key={item.album_id} className="album-card" onClick={() => navigate(`/albums/${item.album_id}`)}>
+              <div key={item.album_id} className="album-card">
                 <div className="album-rank">#{item.position}</div>
                 {item.album?.artwork_thumb_path ? (
                   <img src={albumImage(item.album.artwork_thumb_path)} alt={item.album.title} />
