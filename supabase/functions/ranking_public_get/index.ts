@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
-import { createServiceClient, corsHeaders, errorResponse, jsonResponse, handleOptions } from "../_shared/supabaseClients.ts";
+import { createServiceClient, errorResponse, jsonResponse, handleOptions } from "../_shared/supabaseClients.ts";
 
 type RequestBody = {
   slug: string;
