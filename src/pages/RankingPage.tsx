@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router-dom";
-import { FiShare2, FiClipboard, FiEyeOff } from "react-icons/fi";
+import { FiShare2, FiEyeOff } from "react-icons/fi";
 import {
   getRankingItems,
   getRankingList,
