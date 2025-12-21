@@ -4,7 +4,8 @@ import {
   createServiceClient,
   errorResponse,
   jsonResponse,
-  requireUser
+  requireUser,
+  handleOptions
 } from "../_shared/supabaseClients.ts";
 
 type RequestBody = {
@@ -13,6 +14,8 @@ type RequestBody = {
 };
 
 serve(async (req) => {
+  const opt = handleOptions(req);
+  if (opt) return opt;
   if (req.method !== "POST") {
     return errorResponse("Method not allowed", 405);
   }
