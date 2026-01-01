@@ -14,7 +14,30 @@ const albumImage = (path: string | null | undefined) => {
 const fetchPublicRanking = async (slug: string) => {
   const { data, error } = await supabase.functions.invoke("ranking_public_get", { body: { slug } });
   if (error) throw error;
-  return data as { ranking: { id: string; name: string; kind: string; year: number | null }; items: RankingItem[] };
+  return data as {
+    ranking: {
+      id: string;
+      name: string;
+      kind: string;
+      year: number | null;
+      mode?: string | null;
+      updated_at?: string;
+      owner_name?: string | null;
+    };
+    items: RankingItem[];
+  };
+};
+
+const timeAgo = (iso?: string) => {
+  if (!iso) return "";
+  const diff = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
 };
 
 const PublicRankingPage = () => {
@@ -49,12 +72,19 @@ const PublicRankingPage = () => {
         <header className="card-header">
           <div className="flex-between">
             <div>
-              <p className="eyebrow">Shared ranking</p>
-              <h2>{data.ranking.name}</h2>
-              {data.ranking.kind === "year" && data.ranking.year && <div className="pill">Year: {data.ranking.year}</div>}
+              <p className="eyebrow">Shared {data.ranking.mode === "collection" ? "collection" : "list"}</p>
+              <h2>
+                {data.ranking.owner_name
+                  ? `${data.ranking.owner_name}’s ${data.ranking.name}`
+                  : `Shared ${data.ranking.name}`}
+              </h2>
+              <div className="pill-row">
+                {data.ranking.kind === "year" && data.ranking.year && <div className="pill">Year: {data.ranking.year}</div>}
+                {data.ranking.updated_at && <div className="pill">Updated {timeAgo(data.ranking.updated_at)}</div>}
+              </div>
             </div>
             <button className="button ghost" onClick={() => navigate("/")}>
-              Sign in
+              Open app
             </button>
           </div>
         </header>

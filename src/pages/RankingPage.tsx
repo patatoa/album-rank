@@ -13,7 +13,9 @@ import {
   unshareRanking,
   createList,
   updateList,
-  deleteList
+  deleteList,
+  getUserPreferences,
+  setDisplayName
 } from "../lib/api";
 import { RankingItem, RankingList } from "../types";
 import {
@@ -56,7 +58,7 @@ const SortableCard = ({ item }: { item: RankingItem }) => {
   const album = item.album;
   return (
     <div className="album-card" ref={setNodeRef} style={style} {...attributes} {...listeners}>
-      <div className="album-rank">#{item.position}</div>
+      <div className="album-rank">#{item.position ?? "•"}</div>
       {album ? (
         <img src={albumImage(album.artwork_thumb_path)} alt={album.title} />
       ) : (
@@ -78,12 +80,17 @@ const RankingPage = () => {
   const [newListName, setNewListName] = useState("");
   const [newListMode, setNewListMode] = useState<"ranked" | "collection">("ranked");
   const [newListDescription, setNewListDescription] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "listening" | "not_listened" | "listened">("all");
+  const [showNameModal, setShowNameModal] = useState(false);
+  const [nameInput, setNameInput] = useState("");
   const queryClient = useQueryClient();
 
   const { data: rankingLists } = useQuery({
     queryKey: ["rankingLists"],
     queryFn: getRankingLists
   });
+  const { data: prefs } = useQuery({ queryKey: ["userPreferences"], queryFn: getUserPreferences });
+  const needsListening = rankingLists?.find((r) => r.name === "Needs listening");
 
   useEffect(() => {
     ensureRankingLists([], ["All Time"])
@@ -138,7 +145,12 @@ const RankingPage = () => {
   }, [itemsData]);
 
   const sortedItems = useMemo(() => {
-    const base = [...localItems];
+    let base = [...localItems];
+
+    if (statusFilter !== "all") {
+      base = base.filter((i) => i.user_status === statusFilter);
+    }
+
     if (ranking?.mode === "collection" && ranking.name === "Needs listening") {
       return base
         .sort((a, b) => {
@@ -219,6 +231,13 @@ const RankingPage = () => {
       } else {
         navigate("/add", { replace: true });
       }
+    }
+  });
+
+  const setDisplayNameMutation = useMutation({
+    mutationFn: (name: string) => setDisplayName(name),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["userPreferences"] });
     }
   });
 
@@ -305,10 +324,16 @@ const RankingPage = () => {
               </button>
               <div className="pill-row">
                 {!isPublic ? (
-                  <button
-                    className="button icon-btn"
-                    aria-label="Share ranking"
-                  onClick={() => rankingListId && shareMutation.mutate(rankingListId)}
+                <button
+                  className="button icon-btn"
+                  aria-label="Share ranking"
+                  onClick={() => {
+                    if (!prefs?.display_name || prefs.display_name.trim().length === 0) {
+                      setShowNameModal(true);
+                      return;
+                    }
+                    rankingListId && shareMutation.mutate(rankingListId);
+                  }}
                   disabled={shareMutation.isPending}
                 >
                   <FiShare2 />
@@ -394,6 +419,18 @@ const RankingPage = () => {
               )}
             </div>
           )}
+          <div className="pill-row">
+            <span className="pill">Filters</span>
+            {["all", "listening", "not_listened", "listened"].map((status) => (
+              <button
+                key={status}
+                className={statusFilter === status ? "pill-btn active" : "pill-btn"}
+                onClick={() => setStatusFilter(status as any)}
+              >
+                {status === "all" ? "All" : status === "not_listened" ? "Not listened" : status === "listening" ? "Listening" : "Listened"}
+              </button>
+            ))}
+          </div>
         </header>
         {(rankingLoading || itemsLoading) && <div className="muted">Loading ranking…</div>}
         {!itemsLoading && sortedItems.length === 0 && <div className="muted">No albums yet. Add some on the /add page.</div>}
@@ -496,6 +533,49 @@ const RankingPage = () => {
                 Create
               </button>
               <button className="button ghost" onClick={() => setShowNewList(false)}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {showNameModal && (
+        <div className="modal-backdrop">
+          <div className="modal">
+            <div className="modal-header">
+              <h3>Set display name</h3>
+              <button className="bubble-close" onClick={() => setShowNameModal(false)}>
+                ×
+              </button>
+            </div>
+            <p className="muted small">
+              This name appears on shared lists. You can update it anytime in Settings.
+            </p>
+            <label className="field">
+              <span>Display name</span>
+              <input
+                className="input"
+                value={nameInput}
+                onChange={(e) => setNameInput(e.target.value)}
+                placeholder="Your name"
+              />
+            </label>
+            <div className="pill-row" style={{ marginTop: 12 }}>
+              <button
+                className="button"
+                onClick={() => {
+                  if (!nameInput.trim()) return;
+                  setDisplayNameMutation.mutate(nameInput.trim(), {
+                    onSuccess: () => {
+                      setShowNameModal(false);
+                      if (rankingListId) shareMutation.mutate(rankingListId);
+                    }
+                  });
+                }}
+              >
+                Save & share
+              </button>
+              <button className="button ghost" onClick={() => setShowNameModal(false)}>
                 Cancel
               </button>
             </div>

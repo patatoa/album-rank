@@ -24,6 +24,7 @@ export type UserPreferences = {
   user_id: string;
   intro_dismissed: boolean;
   updated_at?: string;
+  display_name?: string | null;
 };
 
 export type RankingList = {
@@ -47,6 +48,7 @@ export type RankingItem = {
   added_at?: string;
   album?: Album;
   user_status?: "not_listened" | "listening" | "listened";
+  user_notes?: string;
 };
 
 export type EloRating = {

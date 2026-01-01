@@ -6,6 +6,7 @@ import AlbumPage from "./pages/AlbumPage";
 import SignInPage from "./pages/SignInPage";
 import RankingLandingPage from "./pages/RankingLandingPage";
 import PublicRankingPage from "./pages/PublicRankingPage";
+import SettingsPage from "./pages/SettingsPage";
 import { useAuth } from "./lib/AuthProvider";
 import { useTheme } from "./lib/theme";
 import InfoBubble from "./components/InfoBubble";
@@ -21,6 +22,9 @@ const Nav = () => {
       </Link>
       <Link to="/rankings" className={active("/rankings")}>
         Lists
+      </Link>
+      <Link to="/settings" className={active("/settings")}>
+        Settings
       </Link>
     </nav>
   );
@@ -75,6 +79,7 @@ function App() {
         <Route path="/add" element={<AddPage />} />
         <Route path="/rankings/:rankingListId" element={<RankingPage />} />
         <Route path="/rankings" element={<RankingLandingPage />} />
+        <Route path="/settings" element={<SettingsPage />} />
         <Route path="/albums/:albumId" element={<AlbumPage />} />
         <Route path="/share/:slug" element={<PublicRankingPage />} />
         <Route path="*" element={<Navigate to="/add" replace />} />

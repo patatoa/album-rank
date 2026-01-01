@@ -76,13 +76,13 @@ export const getRankingList = async (id: string): Promise<RankingList | null> =>
 };
 
 export const getRankingItems = async (rankingListId: string): Promise<RankingItem[]> => {
-  const { data, error } = await supabase
+  const { data: items, error } = await supabase
     .from("ranking_items")
     .select("ranking_list_id, album_id, position, added_at, album:album_id(*)")
     .eq("ranking_list_id", rankingListId)
     .order("position", { nullsFirst: true });
   if (error) throw error;
-  return (data ?? []) as unknown as RankingItem[];
+  return (items ?? []) as unknown as RankingItem[];
 };
 
 export const reorderRanking = async (payload: { rankingListId: string; orderedAlbumIds: string[] }) => {
@@ -303,7 +303,7 @@ export const getNeedsListeningItems = async (rankingListId: string): Promise<Ran
   const userId = await getUserId();
   const { data, error } = await supabase
     .from("user_albums")
-    .select("status, created_at, album:album_id(*)")
+    .select("status, notes, created_at, album:album_id(*)")
     .eq("user_id", userId)
     .in("status", ["not_listened", "listening"]);
   if (error) throw error;
@@ -313,7 +313,8 @@ export const getNeedsListeningItems = async (rankingListId: string): Promise<Ran
     position: null,
     added_at: row.created_at,
     album: row.album,
-    user_status: row.status
+    user_status: row.status,
+    user_notes: row.notes
   }));
 };
 
@@ -355,13 +356,13 @@ export const getUserPreferences = async (): Promise<UserPreferences> => {
   const userId = await getUserId();
   const { data, error } = await supabase
     .from("user_preferences")
-    .select("user_id, intro_dismissed, updated_at")
+    .select("user_id, intro_dismissed, updated_at, display_name")
     .eq("user_id", userId)
     .maybeSingle();
   if (error && error.code !== "PGRST116") {
     throw error;
   }
-  return (data as UserPreferences) ?? { user_id: userId, intro_dismissed: false };
+  return (data as UserPreferences) ?? { user_id: userId, intro_dismissed: false, display_name: null };
 };
 
 export const dismissIntroBubble = async (): Promise<void> => {
@@ -369,5 +370,13 @@ export const dismissIntroBubble = async (): Promise<void> => {
   const { error } = await supabase
     .from("user_preferences")
     .upsert({ user_id: userId, intro_dismissed: true, updated_at: new Date().toISOString() });
+  if (error) throw error;
+};
+
+export const setDisplayName = async (display_name: string) => {
+  const userId = await getUserId();
+  const { error } = await supabase
+    .from("user_preferences")
+    .upsert({ user_id: userId, display_name, updated_at: new Date().toISOString() });
   if (error) throw error;
 };
