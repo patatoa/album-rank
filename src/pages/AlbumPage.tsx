@@ -53,7 +53,8 @@ const AlbumPage = () => {
     queryKey: ["rankingLists"],
     queryFn: getRankingLists
   });
-  const selectedList = rankingLists?.find((r) => r.id === selectedRanking);
+  const selectableLists = rankingLists?.filter((r) => r.name !== "Needs listening");
+  const selectedList = selectableLists?.find((r) => r.id === selectedRanking);
   const isRankedList = (selectedList?.mode ?? "ranked") === "ranked";
 
   useEffect(() => {
@@ -67,25 +68,37 @@ const AlbumPage = () => {
     queryFn: () => getAlbumMemberships(albumId ?? ""),
     enabled: !!albumId
   });
-  const membershipSet = useMemo(
-    () => new Set((memberships ?? []).map((m) => m.ranking_list_id)),
-    [memberships]
-  );
+  const membershipSet = useMemo(() => {
+    const set = new Set((memberships ?? []).map((m) => m.ranking_list_id));
+    const needsList = rankingLists?.find((r) => r.name === "Needs listening");
+    const statusQualifies =
+      detail?.userAlbum?.status === "not_listened" || detail?.userAlbum?.status === "listening";
+    if (needsList && statusQualifies) {
+      set.add(needsList.id);
+    }
+    return set;
+  }, [memberships, rankingLists, detail]);
 
   useEffect(() => {
     if (selectedRanking) return;
-    if (rankingQueryParam) {
+    const firstSelectable = selectableLists?.[0]?.id ?? null;
+    if (rankingQueryParam && selectableLists?.some((r) => r.id === rankingQueryParam)) {
       setSelectedRanking(rankingQueryParam);
       return;
     }
     if (memberships && memberships.length > 0) {
-      setSelectedRanking(memberships[0].ranking_list_id);
-      return;
+      const firstMember = memberships.find((m) =>
+        selectableLists?.some((r) => r.id === m.ranking_list_id)
+      );
+      if (firstMember) {
+        setSelectedRanking(firstMember.ranking_list_id);
+        return;
+      }
     }
-    if (rankingLists && rankingLists.length > 0) {
-      setSelectedRanking(rankingLists[0].id);
+    if (firstSelectable) {
+      setSelectedRanking(firstSelectable);
     }
-  }, [memberships, rankingLists, selectedRanking, rankingQueryParam]);
+  }, [memberships, selectableLists, selectedRanking, rankingQueryParam]);
 
   const { data: ranking } = useQuery({
     queryKey: ["ranking", selectedRanking],
@@ -266,14 +279,14 @@ const AlbumPage = () => {
           <h2>{selectedList?.name ?? ranking?.name ?? "Select list"}</h2>
           <div className="form-row">
             <select className="input" value={selectedRanking ?? ""} onChange={(e) => setSelectedRanking(e.target.value)}>
-              {rankingLists?.map((r) => (
+              {selectableLists?.map((r) => (
                 <option key={r.id} value={r.id}>
                   {r.kind === "year" && r.year ? `${r.year}` : r.name}
                   {membershipSet.has(r.id) ? " ✓" : ""}
                 </option>
               ))}
             </select>
-            <button className="button" onClick={toggleMembership}>
+            <button className="button" onClick={toggleMembership} disabled={!selectedRanking}>
               {isMember ? "Remove from list" : "Add to list"}
             </button>
           </div>

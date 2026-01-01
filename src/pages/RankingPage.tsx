@@ -4,6 +4,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { FiShare2, FiEyeOff } from "react-icons/fi";
 import {
   getRankingItems,
+  getNeedsListeningItems,
   getRankingList,
   getRankingLists,
   ensureRankingLists,
@@ -106,9 +107,14 @@ const RankingPage = () => {
   }, [ranking, sortMode]);
 
   const { data: itemsData, isLoading: itemsLoading } = useQuery({
-    queryKey: ["rankingItems", rankingListId],
-    queryFn: () => getRankingItems(rankingListId ?? ""),
-    enabled: !!rankingListId
+    queryKey: ["rankingItems", rankingListId, ranking?.mode, ranking?.name],
+    queryFn: () => {
+      if (ranking?.mode === "collection" && ranking?.name === "Needs listening") {
+        return getNeedsListeningItems(rankingListId ?? "");
+      }
+      return getRankingItems(rankingListId ?? "");
+    },
+    enabled: !!rankingListId && ranking !== undefined
   });
 
   const reorderMutation = useMutation({
@@ -133,6 +139,17 @@ const RankingPage = () => {
 
   const sortedItems = useMemo(() => {
     const base = [...localItems];
+    if (ranking?.mode === "collection" && ranking.name === "Needs listening") {
+      return base
+        .sort((a, b) => {
+          const order = (status?: string) => (status === "listening" ? 0 : status === "not_listened" ? 1 : 2);
+          const diff = order(a.user_status) - order(b.user_status);
+          if (diff !== 0) return diff;
+          const aTime = a.added_at ? new Date(a.added_at).getTime() : 0;
+          const bTime = b.added_at ? new Date(b.added_at).getTime() : 0;
+          return bTime - aTime;
+        });
+    }
     if (sortMode === "added") {
       return base.sort((a, b) => {
         const aTime = a.added_at ? new Date(a.added_at).getTime() : 0;
@@ -362,15 +379,19 @@ const RankingPage = () => {
             </div>
           ) : (
             <div className="pill-row">
-              {["added", "title", "artist", "year"].map((mode) => (
-                <button
-                  key={mode}
-                  className={sortMode === mode ? "pill-btn active" : "pill-btn"}
-                  onClick={() => setSortMode(mode as any)}
-                >
-                  {mode === "added" ? "Added" : mode === "title" ? "Title" : mode === "artist" ? "Artist" : "Year"}
-                </button>
-              ))}
+              {ranking?.name === "Needs listening" ? (
+                <span className="pill">Auto-sorted (Listening → Not listened, newest first)</span>
+              ) : (
+                ["added", "title", "artist", "year"].map((mode) => (
+                  <button
+                    key={mode}
+                    className={sortMode === mode ? "pill-btn active" : "pill-btn"}
+                    onClick={() => setSortMode(mode as any)}
+                  >
+                    {mode === "added" ? "Added" : mode === "title" ? "Title" : mode === "artist" ? "Artist" : "Year"}
+                  </button>
+                ))
+              )}
             </div>
           )}
         </header>

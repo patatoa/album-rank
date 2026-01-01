@@ -20,7 +20,7 @@ const Nav = () => {
         Add
       </Link>
       <Link to="/rankings" className={active("/rankings")}>
-        Rankings
+        Lists
       </Link>
     </nav>
   );

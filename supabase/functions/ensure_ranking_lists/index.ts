@@ -64,9 +64,11 @@ serve(async (req) => {
       if (selectError) throw selectError;
 
       if (!existing) {
+        const mode = name === "Needs listening" ? "collection" : "ranked";
+        const description = name === "Needs listening" ? "Albums to listen to" : null;
         const { error: insertError } = await serviceClient
           .from("ranking_lists")
-          .insert({ user_id: user.id, kind: "custom", name });
+          .insert({ user_id: user.id, kind: "custom", name, mode, description });
         if (insertError) throw insertError;
       }
     }

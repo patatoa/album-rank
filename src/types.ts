@@ -46,6 +46,7 @@ export type RankingItem = {
   position: number | null;
   added_at?: string;
   album?: Album;
+  user_status?: "not_listened" | "listening" | "listened";
 };
 
 export type EloRating = {

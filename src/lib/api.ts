@@ -231,8 +231,30 @@ export const removeAlbumFromRanking = async (rankingListId: string, albumId: str
 };
 
 export const ensureRankingLists = async (years: number[], custom: string[] = []) => {
+  const needsName = "Needs listening";
+  const customWithNeeds = Array.from(new Set([...(custom ?? []), needsName]));
+
   const fallbackClientInsert = async () => {
     const userId = await getUserId();
+    // Ensure special collection list exists
+    const { data: needsExisting, error: needsSelectError } = await supabase
+      .from("ranking_lists")
+      .select("id")
+      .eq("user_id", userId)
+      .eq("name", needsName)
+      .maybeSingle();
+    if (needsSelectError) throw needsSelectError;
+    if (!needsExisting) {
+      const { error: needsInsertError } = await supabase.from("ranking_lists").insert({
+        user_id: userId,
+        kind: "custom",
+        name: needsName,
+        mode: "collection",
+        description: "Auto-collection of albums to listen"
+      });
+      if (needsInsertError) throw needsInsertError;
+    }
+
     for (const year of years) {
       const { data: existing, error: selectError } = await supabase
         .from("ranking_lists")
@@ -249,7 +271,7 @@ export const ensureRankingLists = async (years: number[], custom: string[] = [])
         if (insertError) throw insertError;
       }
     }
-    for (const name of custom) {
+    for (const name of customWithNeeds) {
       const { data: existing, error: selectError } = await supabase
         .from("ranking_lists")
         .select("id")
@@ -268,13 +290,31 @@ export const ensureRankingLists = async (years: number[], custom: string[] = [])
   };
 
   try {
-    await edgeInvoke<{ ok: boolean }>("ensure_ranking_lists", { years, custom });
+    await edgeInvoke<{ ok: boolean }>("ensure_ranking_lists", { years, custom: customWithNeeds });
   } catch (err) {
     console.warn("ensureRankingLists via Edge Function failed, falling back to client insert", err);
     await fallbackClientInsert();
   }
 
   return getRankingLists();
+};
+
+export const getNeedsListeningItems = async (rankingListId: string): Promise<RankingItem[]> => {
+  const userId = await getUserId();
+  const { data, error } = await supabase
+    .from("user_albums")
+    .select("status, created_at, album:album_id(*)")
+    .eq("user_id", userId)
+    .in("status", ["not_listened", "listening"]);
+  if (error) throw error;
+  return (data ?? []).map((row: any) => ({
+    ranking_list_id: rankingListId,
+    album_id: row.album?.id,
+    position: null,
+    added_at: row.created_at,
+    album: row.album,
+    user_status: row.status
+  }));
 };
 
 export const createList = async (payload: {
