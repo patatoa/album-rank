@@ -50,16 +50,16 @@ export const ingestItunesAlbum = (payload: {
     artworkUrl100: string;
     collectionViewUrl?: string | null;
   };
-  targetRankingListId?: string | null;
-  includeInRanking?: boolean;
+  targetListId?: string | null;
+  includeInList?: boolean;
 }) => edgeInvoke<{ albumId: string; createdAlbum: boolean; createdRankingItem: boolean }>("album_ingest_itunes", payload);
 
 export const createManualAlbum = (payload: {
   title: string;
   artist: string;
   releaseYear?: number | null;
-  targetRankingListId?: string | null;
-  includeInRanking?: boolean;
+  targetListId?: string | null;
+  includeInList?: boolean;
   coverBase64?: string;
 }) => edgeInvoke<{ albumId: string; createdRankingItem: boolean }>("album_create_manual", payload);
 
@@ -80,7 +80,7 @@ export const getRankingItems = async (rankingListId: string): Promise<RankingIte
     .from("ranking_items")
     .select("ranking_list_id, album_id, position, added_at, album:album_id(*)")
     .eq("ranking_list_id", rankingListId)
-    .order("position");
+    .order("position", { nullsFirst: true });
   if (error) throw error;
   return (data ?? []) as unknown as RankingItem[];
 };
@@ -171,22 +171,44 @@ export const getAlbumMemberships = async (albumId: string) => {
 };
 
 export const addAlbumToRanking = async (rankingListId: string, albumId: string) => {
-  const { data: maxRow, error: maxError } = await supabase
-    .from("ranking_items")
-    .select("position")
-    .eq("ranking_list_id", rankingListId)
-    .order("position", { ascending: false })
-    .limit(1)
+  // fetch list mode to decide position
+  const { data: list, error: listError } = await supabase
+    .from("ranking_lists")
+    .select("mode")
+    .eq("id", rankingListId)
     .maybeSingle();
-  if (maxError) throw maxError;
-  const nextPosition = (maxRow?.position ?? 0) + 1;
+  if (listError) throw listError;
+  const mode = (list?.mode as "ranked" | "collection") ?? "ranked";
+
+  let position: number | null = null;
+  if (mode === "ranked") {
+    const { data: maxRow, error: maxError } = await supabase
+      .from("ranking_items")
+      .select("position")
+      .eq("ranking_list_id", rankingListId)
+      .order("position", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (maxError) throw maxError;
+    position = (maxRow?.position ?? 0) + 1;
+  }
+
   const { error } = await supabase
     .from("ranking_items")
-    .insert({ ranking_list_id: rankingListId, album_id: albumId, position: nextPosition });
+    .insert({ ranking_list_id: rankingListId, album_id: albumId, position });
   if (error) throw error;
 };
 
 export const removeAlbumFromRanking = async (rankingListId: string, albumId: string) => {
+  // Determine mode to decide reindexing
+  const { data: list, error: listError } = await supabase
+    .from("ranking_lists")
+    .select("mode")
+    .eq("id", rankingListId)
+    .maybeSingle();
+  if (listError) throw listError;
+  const mode = (list?.mode as "ranked" | "collection") ?? "ranked";
+
   const { error } = await supabase
     .from("ranking_items")
     .delete()
@@ -194,15 +216,17 @@ export const removeAlbumFromRanking = async (rankingListId: string, albumId: str
     .eq("album_id", albumId);
   if (error) throw error;
 
-  const { data: remaining, error: listError } = await supabase
-    .from("ranking_items")
-    .select("album_id")
-    .eq("ranking_list_id", rankingListId)
-    .order("position");
-  if (listError) throw listError;
-  const orderedAlbumIds = (remaining ?? []).map((r) => r.album_id);
-  if (orderedAlbumIds.length > 0) {
-    await reorderRanking({ rankingListId, orderedAlbumIds });
+  if (mode === "ranked") {
+    const { data: remaining, error: listError2 } = await supabase
+      .from("ranking_items")
+      .select("album_id")
+      .eq("ranking_list_id", rankingListId)
+      .order("position");
+    if (listError2) throw listError2;
+    const orderedAlbumIds = (remaining ?? []).map((r) => r.album_id);
+    if (orderedAlbumIds.length > 0) {
+      await reorderRanking({ rankingListId, orderedAlbumIds });
+    }
   }
 };
 
@@ -221,7 +245,7 @@ export const ensureRankingLists = async (years: number[], custom: string[] = [])
       if (!existing) {
         const { error: insertError } = await supabase
           .from("ranking_lists")
-          .insert({ user_id: userId, kind: "year", year, name: String(year) });
+          .insert({ user_id: userId, kind: "year", year, name: String(year), mode: "ranked" });
         if (insertError) throw insertError;
       }
     }
@@ -237,7 +261,7 @@ export const ensureRankingLists = async (years: number[], custom: string[] = [])
       if (!existing) {
         const { error: insertError } = await supabase
           .from("ranking_lists")
-          .insert({ user_id: userId, kind: "custom", name });
+          .insert({ user_id: userId, kind: "custom", name, mode: "ranked" });
         if (insertError) throw insertError;
       }
     }
@@ -251,6 +275,40 @@ export const ensureRankingLists = async (years: number[], custom: string[] = [])
   }
 
   return getRankingLists();
+};
+
+export const createList = async (payload: {
+  name: string;
+  mode: "ranked" | "collection";
+  description?: string | null;
+  kind?: "year" | "custom";
+  year?: number | null;
+}): Promise<RankingList> => {
+  const user_id = await getUserId();
+  const { data, error } = await supabase
+    .from("ranking_lists")
+    .insert({
+      user_id,
+      name: payload.name,
+      mode: payload.mode,
+      description: payload.description ?? null,
+      kind: payload.kind ?? "custom",
+      year: payload.year ?? null
+    })
+    .select("*")
+    .single();
+  if (error) throw error;
+  return data as RankingList;
+};
+
+export const updateList = async (id: string, updates: Partial<Pick<RankingList, "name" | "description">>) => {
+  const { error } = await supabase.from("ranking_lists").update({ ...updates, updated_at: new Date().toISOString() }).eq("id", id);
+  if (error) throw error;
+};
+
+export const deleteList = async (id: string) => {
+  const { error } = await supabase.from("ranking_lists").delete().eq("id", id);
+  if (error) throw error;
 };
 
 export const getUserPreferences = async (): Promise<UserPreferences> => {

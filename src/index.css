@@ -338,6 +338,10 @@ body {
   color: var(--accent);
 }
 
+.pill-btn .check {
+  color: var(--accent);
+}
+
 .flex-between {
   display: flex;
   align-items: center;
@@ -387,6 +391,30 @@ body {
   cursor: pointer;
 }
 
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  display: grid;
+  place-items: center;
+  z-index: 10;
+}
+
+.modal {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  padding: 16px;
+  border-radius: 10px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.25);
+  width: min(480px, 90vw);
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
 @media (max-width: 480px) {
   .logo {
     font-size: 14px;

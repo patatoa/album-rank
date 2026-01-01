@@ -53,6 +53,8 @@ const AlbumPage = () => {
     queryKey: ["rankingLists"],
     queryFn: getRankingLists
   });
+  const selectedList = rankingLists?.find((r) => r.id === selectedRanking);
+  const isRankedList = (selectedList?.mode ?? "ranked") === "ranked";
 
   useEffect(() => {
     ensureRankingLists([], ["All Time"])
@@ -65,6 +67,10 @@ const AlbumPage = () => {
     queryFn: () => getAlbumMemberships(albumId ?? ""),
     enabled: !!albumId
   });
+  const membershipSet = useMemo(
+    () => new Set((memberships ?? []).map((m) => m.ranking_list_id)),
+    [memberships]
+  );
 
   useEffect(() => {
     if (selectedRanking) return;
@@ -121,7 +127,10 @@ const AlbumPage = () => {
   }, [rankingItems]);
 
   useEffect(() => {
-    if (!albumId) return;
+    if (!albumId || !isRankedList) {
+      setOpponent(null);
+      return;
+    }
     const candidates = orderedItems.filter((item) => item.album_id !== albumId);
     if (candidates.length === 0) {
       setOpponent(null);
@@ -151,7 +160,7 @@ const AlbumPage = () => {
   });
 
   const handleCompare = async (winnerAlbumId: string) => {
-    if (!selectedRanking || !albumId || !opponent) return;
+    if (!selectedRanking || !albumId || !opponent || !isRankedList) return;
     const loserAlbumId = opponent.album_id === winnerAlbumId ? albumId : opponent.album_id;
 
     await comparisonMutation.mutateAsync({
@@ -253,71 +262,76 @@ const AlbumPage = () => {
 
       <section className="card">
         <header className="card-header">
-          <p className="eyebrow">Ranking membership</p>
-          <h2>{ranking?.name ?? "Select ranking"}</h2>
+          <p className="eyebrow">Lists</p>
+          <h2>{selectedList?.name ?? ranking?.name ?? "Select list"}</h2>
           <div className="form-row">
             <select className="input" value={selectedRanking ?? ""} onChange={(e) => setSelectedRanking(e.target.value)}>
               {rankingLists?.map((r) => (
                 <option key={r.id} value={r.id}>
                   {r.kind === "year" && r.year ? `${r.year}` : r.name}
+                  {membershipSet.has(r.id) ? " ✓" : ""}
                 </option>
               ))}
             </select>
             <button className="button" onClick={toggleMembership}>
-              {isMember ? "Remove from ranking" : "Add to ranking"}
+              {isMember ? "Remove from list" : "Add to list"}
             </button>
           </div>
         </header>
         <div className="muted">
           {isMember
-            ? "This album is counted in this ranking."
-            : "Not in this ranking. Add it to include in comparisons."}
+            ? selectedList?.mode === "collection"
+              ? "This album is in this collection."
+              : "This album is counted in this ranked list."
+            : "Not in this list. Add it to include."}
         </div>
       </section>
 
-      <section className="card">
-        <header className="card-header">
-          <p className="eyebrow">This-or-that</p>
-          <h2>Compare within this ranking</h2>
-        </header>
-        {!opponent && <div className="muted">Need at least one other album in this ranking to compare.</div>}
-        {opponent && (
-          <div className="comparison">
-            <div className="compare-col">
-              {album.artwork_thumb_path && (
-                <img src={albumImage(album.artwork_thumb_path)} alt={album.title} className="compare-img" />
-              )}
-              <div className="album-title">{album.title}</div>
-              <div className="album-artist">{album.artist}</div>
-              <button
-                className="button primary"
-                onClick={() => handleCompare(album.id)}
-                disabled={(comparisonMutation as any).isPending}
-              >
-                This one wins
-              </button>
+      {isRankedList && (
+        <section className="card">
+          <header className="card-header">
+            <p className="eyebrow">This-or-that</p>
+            <h2>Compare within this ranking</h2>
+          </header>
+          {!opponent && <div className="muted">Need at least one other album in this ranking to compare.</div>}
+          {opponent && (
+            <div className="comparison">
+              <div className="compare-col">
+                {album.artwork_thumb_path && (
+                  <img src={albumImage(album.artwork_thumb_path)} alt={album.title} className="compare-img" />
+                )}
+                <div className="album-title">{album.title}</div>
+                <div className="album-artist">{album.artist}</div>
+                <button
+                  className="button primary"
+                  onClick={() => handleCompare(album.id)}
+                  disabled={(comparisonMutation as any).isPending}
+                >
+                  This one wins
+                </button>
+              </div>
+              <div className="compare-col">
+                {opponent.album?.artwork_thumb_path && (
+                  <img
+                    src={albumImage(opponent.album.artwork_thumb_path)}
+                    alt={opponent.album.title}
+                    className="compare-img"
+                  />
+                )}
+                <div className="album-title">{opponent.album?.title ?? "Unknown"}</div>
+                <div className="album-artist">{opponent.album?.artist ?? ""}</div>
+                <button
+                  className="button ghost"
+                  onClick={() => handleCompare(opponent.album_id)}
+                  disabled={(comparisonMutation as any).isPending}
+                >
+                  Opponent wins
+                </button>
+              </div>
             </div>
-            <div className="compare-col">
-              {opponent.album?.artwork_thumb_path && (
-                <img
-                  src={albumImage(opponent.album.artwork_thumb_path)}
-                  alt={opponent.album.title}
-                  className="compare-img"
-                />
-              )}
-              <div className="album-title">{opponent.album?.title ?? "Unknown"}</div>
-              <div className="album-artist">{opponent.album?.artist ?? ""}</div>
-              <button
-                className="button ghost"
-                onClick={() => handleCompare(opponent.album_id)}
-                disabled={(comparisonMutation as any).isPending}
-              >
-                Opponent wins
-              </button>
-            </div>
-          </div>
-        )}
-      </section>
+          )}
+        </section>
+      )}
     </div>
   );
 };

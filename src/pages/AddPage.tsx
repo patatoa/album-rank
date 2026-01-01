@@ -46,10 +46,8 @@ const SearchResult = ({
 const AddPage = () => {
   const [term, setTerm] = useState("");
   const debounced = debounce(term, 300);
-  const [includeInRanking, setIncludeInRanking] = useState(true);
-  const [targetRankingListId, setTargetRankingListId] = useState<string | null>(
-    null
-  );
+  const [includeInList, setIncludeInList] = useState(true);
+  const [targetListId, setTargetListId] = useState<string | null>(null);
 
   const [manualTitle, setManualTitle] = useState("");
   const [manualArtist, setManualArtist] = useState("");
@@ -80,19 +78,16 @@ const AddPage = () => {
       });
   }, [queryClient]);
 
-  const rankingOptions = useMemo(
-    () => (rankings ?? []).filter((r) => r.name !== "All Time"),
-    [rankings]
-  );
+  const rankingOptions = useMemo(() => rankings ?? [], [rankings]);
 
   useEffect(() => {
-    if (rankingOptions.length > 0 && !targetRankingListId) {
+    if (rankingOptions.length > 0 && !targetListId) {
       const yearMatch = rankingOptions.find(
         (r) => r.kind === "year" && r.year === yearLabel
       );
-      setTargetRankingListId(yearMatch?.id ?? rankingOptions[0]?.id ?? null);
+      setTargetListId(yearMatch?.id ?? rankingOptions[0]?.id ?? null);
     }
-  }, [rankingOptions, targetRankingListId]);
+  }, [rankingOptions, targetListId]);
 
   const { data: searchResults, isLoading } = useQuery({
     queryKey: ["itunesSearch", debounced],
@@ -104,10 +99,10 @@ const AddPage = () => {
     mutationFn: ingestItunesAlbum,
     onSuccess: (data) => {
       queryClient.invalidateQueries({
-        queryKey: ["rankingItems", targetRankingListId],
+        queryKey: ["rankingItems", targetListId],
       });
-      if (includeInRanking && targetRankingListId) {
-        navigate(`/rankings/${targetRankingListId}`);
+      if (includeInList && targetListId) {
+        navigate(`/rankings/${targetListId}`);
       } else {
         navigate(`/albums/${data.albumId}`);
       }
@@ -122,10 +117,10 @@ const AddPage = () => {
     mutationFn: createManualAlbum,
     onSuccess: (data) => {
       queryClient.invalidateQueries({
-        queryKey: ["rankingItems", targetRankingListId],
+        queryKey: ["rankingItems", targetListId],
       });
-      if (includeInRanking && targetRankingListId) {
-        navigate(`/rankings/${targetRankingListId}`);
+      if (includeInList && targetListId) {
+        navigate(`/rankings/${targetListId}`);
       } else {
         navigate(`/albums/${data.albumId}`);
       }
@@ -155,8 +150,8 @@ const AddPage = () => {
         artworkUrl100: result.artworkUrl100,
         collectionViewUrl: result.collectionViewUrl,
       },
-      targetRankingListId,
-      includeInRanking,
+      targetListId,
+      includeInList,
     });
   };
 
@@ -170,8 +165,8 @@ const AddPage = () => {
       artist: manualArtist,
       releaseYear: manualYear,
       coverBase64,
-      targetRankingListId,
-      includeInRanking,
+      targetListId,
+      includeInList,
     });
   };
 
@@ -191,12 +186,12 @@ const AddPage = () => {
             onChange={(e) => setTerm(e.target.value)}
           />
           <div className="ranking-select">
-            <label>Counts towards</label>
+            <label>Add to list</label>
             <select
-              value={targetRankingListId ?? ""}
-              onChange={(e) => setTargetRankingListId(e.target.value)}
+              value={targetListId ?? ""}
+              onChange={(e) => setTargetListId(e.target.value)}
               className="input"
-              disabled={rankingOptions.length === 0}
+              disabled={rankingOptions.length === 0 || !includeInList}
             >
               {rankingOptions.map((r: RankingList) => (
                 <option key={r.id} value={r.id}>
@@ -207,10 +202,10 @@ const AddPage = () => {
             <label className="checkbox">
               <input
                 type="checkbox"
-                checked={!includeInRanking}
-                onChange={(e) => setIncludeInRanking(!e.target.checked)}
+                checked={!includeInList}
+                onChange={(e) => setIncludeInList(!e.target.checked)}
               />
-              Doesn&apos;t count
+              Don&apos;t add to a list
             </label>
           </div>
         </div>

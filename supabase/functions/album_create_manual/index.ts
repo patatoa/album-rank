@@ -12,8 +12,8 @@ type RequestBody = {
   title: string;
   artist: string;
   releaseYear?: number | null;
-  targetRankingListId?: string | null;
-  includeInRanking?: boolean;
+  targetListId?: string | null;
+  includeInList?: boolean;
   coverBase64?: string;
   thumbBase64?: string;
   mediumBase64?: string;
@@ -54,7 +54,7 @@ serve(async (req) => {
       return errorResponse("Title and artist are required", 400);
     }
 
-    const includeInRanking = body.includeInRanking ?? true;
+    const includeInList = body.includeInList ?? true;
     const coverBytes = decodeBase64(body.coverBase64 ?? body.thumbBase64 ?? body.mediumBase64);
 
     // Reuse the same image for both sizes (scaling handled client-side or later)
@@ -127,12 +127,12 @@ serve(async (req) => {
 
     let createdRankingItem = false;
 
-    if (includeInRanking && body.targetRankingListId) {
-      const rankingListId = body.targetRankingListId;
+    if (includeInList && body.targetListId) {
+      const rankingListId = body.targetListId;
 
       const { data: ownership, error: ownershipError } = await serviceClient
         .from("ranking_lists")
-        .select("id")
+        .select("id, mode")
         .eq("id", rankingListId)
         .eq("user_id", user.id)
         .maybeSingle();
@@ -145,23 +145,27 @@ serve(async (req) => {
         return errorResponse("Ranking list not found for user", 403);
       }
 
-      const { data: maxRow, error: maxError } = await serviceClient
-        .from("ranking_items")
-        .select("position")
-        .eq("ranking_list_id", rankingListId)
-        .order("position", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+      let position: number | null = null;
+      if (ownership.mode === "ranked") {
+        const { data: maxRow, error: maxError } = await serviceClient
+          .from("ranking_items")
+          .select("position")
+          .eq("ranking_list_id", rankingListId)
+          .order("position", { ascending: false })
+          .limit(1)
+          .maybeSingle();
 
-      if (maxError) {
-        return errorResponse(maxError.message, 500);
+        if (maxError) {
+          return errorResponse(maxError.message, 500);
+        }
+
+        position = (maxRow?.position ?? 0) + 1;
       }
 
-      const nextPosition = (maxRow?.position ?? 0) + 1;
       const { error: insertItemError } = await serviceClient.from("ranking_items").insert({
         ranking_list_id: rankingListId,
         album_id: albumId,
-        position: nextPosition
+        position
       });
 
       if (insertItemError) {
@@ -170,15 +174,17 @@ serve(async (req) => {
 
       createdRankingItem = true;
 
-      const { error: eloError } = await serviceClient
-        .from("elo_ratings")
-        .upsert(
-          { ranking_list_id: rankingListId, album_id: albumId },
-          { onConflict: "ranking_list_id,album_id" }
-        );
+      if (ownership.mode === "ranked") {
+        const { error: eloError } = await serviceClient
+          .from("elo_ratings")
+          .upsert(
+            { ranking_list_id: rankingListId, album_id: albumId },
+            { onConflict: "ranking_list_id,album_id" }
+          );
 
-      if (eloError) {
-        return errorResponse(eloError.message, 500);
+        if (eloError) {
+          return errorResponse(eloError.message, 500);
+        }
       }
     }
 

@@ -32,6 +32,8 @@ export type RankingList = {
   name: string;
   kind: "year" | "custom";
   year: number | null;
+  mode: "ranked" | "collection";
+  description?: string | null;
   is_public?: boolean;
   public_slug?: string | null;
   created_at?: string;
@@ -41,7 +43,7 @@ export type RankingList = {
 export type RankingItem = {
   ranking_list_id: string;
   album_id: string;
-  position: number;
+  position: number | null;
   added_at?: string;
   album?: Album;
 };

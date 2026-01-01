@@ -9,9 +9,12 @@ import {
   ensureRankingLists,
   reorderRanking,
   shareRanking,
-  unshareRanking
+  unshareRanking,
+  createList,
+  updateList,
+  deleteList
 } from "../lib/api";
-import { RankingItem } from "../types";
+import { RankingItem, RankingList } from "../types";
 import {
   DndContext,
   DragEndEvent,
@@ -65,11 +68,15 @@ const SortableCard = ({ item }: { item: RankingItem }) => {
 const RankingPage = () => {
   const { rankingListId } = useParams<{ rankingListId: string }>();
   const navigate = useNavigate();
-  const [sortMode, setSortMode] = useState<"rank" | "added">("rank");
+  const [sortMode, setSortMode] = useState<"rank" | "added" | "title" | "artist" | "year">("rank");
   const [localItems, setLocalItems] = useState<RankingItem[]>([]);
   const [previousOrder, setPreviousOrder] = useState<string[] | null>(null);
   const [publicSlug, setPublicSlug] = useState<string | null>(null);
   const [isPublic, setIsPublic] = useState<boolean>(false);
+  const [showNewList, setShowNewList] = useState(false);
+  const [newListName, setNewListName] = useState("");
+  const [newListMode, setNewListMode] = useState<"ranked" | "collection">("ranked");
+  const [newListDescription, setNewListDescription] = useState("");
   const queryClient = useQueryClient();
 
   const { data: rankingLists } = useQuery({
@@ -88,6 +95,15 @@ const RankingPage = () => {
     queryFn: () => getRankingList(rankingListId ?? ""),
     enabled: !!rankingListId
   });
+
+  useEffect(() => {
+    if (ranking?.mode === "collection" && (sortMode === "rank" || sortMode === "added")) {
+      setSortMode("added");
+    }
+    if (ranking?.mode === "ranked" && sortMode !== "rank" && sortMode !== "added") {
+      setSortMode("rank");
+    }
+  }, [ranking, sortMode]);
 
   const { data: itemsData, isLoading: itemsLoading } = useQuery({
     queryKey: ["rankingItems", rankingListId],
@@ -124,10 +140,20 @@ const RankingPage = () => {
         return bTime - aTime;
       });
     }
-    return base.sort((a, b) => a.position - b.position);
+    if (sortMode === "title") {
+      return base.sort((a, b) => (a.album?.title ?? "").localeCompare(b.album?.title ?? ""));
+    }
+    if (sortMode === "artist") {
+      return base.sort((a, b) => (a.album?.artist ?? "").localeCompare(b.album?.artist ?? ""));
+    }
+    if (sortMode === "year") {
+      return base.sort((a, b) => (a.album?.release_year ?? 0) - (b.album?.release_year ?? 0));
+    }
+    return base.sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
   }, [localItems, sortMode]);
 
   const handleDragEnd = (event: DragEndEvent) => {
+    if (ranking?.mode === "collection") return;
     if (sortMode === "added") return;
     const { active, over } = event;
     if (!over || active.id === over.id) return;
@@ -144,6 +170,40 @@ const RankingPage = () => {
     setLocalItems(newItems);
     reorderMutation.mutate({ rankingListId: rankingListId!, orderedAlbumIds });
   };
+
+  const createListMutation = useMutation({
+    mutationFn: createList,
+    onSuccess: (list) => {
+      queryClient.invalidateQueries({ queryKey: ["rankingLists"] });
+      setShowNewList(false);
+      setNewListName("");
+      setNewListDescription("");
+      setNewListMode("ranked");
+      navigate(`/rankings/${list.id}`);
+    },
+    onError: (err) => console.error("Create list failed", err)
+  });
+
+  const renameMutation = useMutation({
+    mutationFn: ({ id, name }: { id: string; name: string }) => updateList(id, { name }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["rankingLists"] });
+      queryClient.invalidateQueries({ queryKey: ["ranking", rankingListId] });
+    }
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: deleteList,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["rankingLists"] });
+      const lists = (queryClient.getQueryData(["rankingLists"]) as any) as RankingList[] | undefined;
+      if (lists && lists.length > 0) {
+        navigate(`/rankings/${lists[0].id}`, { replace: true });
+      } else {
+        navigate("/add", { replace: true });
+      }
+    }
+  });
 
   const copyLink = async (slug: string) => {
     const url = `${window.location.origin}/share/${slug}`;
@@ -207,25 +267,30 @@ const RankingPage = () => {
     if (id) navigate(`/rankings/${id}`);
   };
 
+  const isRanked = ranking?.mode !== "collection";
+
   return (
     <div className="page-grid">
       <section className="card">
         <header className="card-header">
           <p className="eyebrow">Ranking</p>
-          <div className="flex-between">
-            <h2>{ranking?.name ?? "Ranking"}</h2>
-            <select className="input" value={rankingListId} onChange={handleRankingChange}>
-              {rankingLists?.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.kind === "year" && r.year ? `${r.year}` : r.name}
-                </option>
-              ))}
-            </select>
-            <div className="pill-row">
-              {!isPublic ? (
-                <button
-                  className="button icon-btn"
-                  aria-label="Share ranking"
+            <div className="flex-between">
+              <h2>{ranking?.name ?? "Ranking"}</h2>
+              <select className="input" value={rankingListId} onChange={handleRankingChange}>
+                {rankingLists?.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.kind === "year" && r.year ? `${r.year}` : r.name}
+                  </option>
+                ))}
+              </select>
+              <button className="button ghost" onClick={() => setShowNewList(true)}>
+                + New list…
+              </button>
+              <div className="pill-row">
+                {!isPublic ? (
+                  <button
+                    className="button icon-btn"
+                    aria-label="Share ranking"
                   onClick={() => rankingListId && shareMutation.mutate(rankingListId)}
                   disabled={shareMutation.isPending}
                 >
@@ -255,27 +320,77 @@ const RankingPage = () => {
                 </>
               )}
             </div>
+            <div className="pill-row">
+              <button
+                className="pill-btn"
+                onClick={() => {
+                  const newName = window.prompt("Rename list", ranking?.name ?? "");
+                  if (newName && rankingListId) {
+                    renameMutation.mutate({ id: rankingListId, name: newName });
+                  }
+                }}
+              >
+                Rename
+              </button>
+              <button
+                className="pill-btn"
+                onClick={() => {
+                  if (rankingListId && window.confirm("Delete this list? This removes its items but not albums.")) {
+                    deleteMutation.mutate(rankingListId);
+                  }
+                }}
+              >
+                Delete
+              </button>
+              {ranking?.mode === "collection" && <span className="pill">Collection</span>}
+            </div>
           </div>
-          <div className="pill-row">
-            <button
-              className={sortMode === "rank" ? "pill-btn active" : "pill-btn"}
-              onClick={() => setSortMode("rank")}
-            >
-              Rank
-            </button>
-            <button
-              className={sortMode === "added" ? "pill-btn active" : "pill-btn"}
-              onClick={() => setSortMode("added")}
-            >
-              Added
-            </button>
-          </div>
+          {isRanked ? (
+            <div className="pill-row">
+              <button
+                className={sortMode === "rank" ? "pill-btn active" : "pill-btn"}
+                onClick={() => setSortMode("rank")}
+              >
+                Rank
+              </button>
+              <button
+                className={sortMode === "added" ? "pill-btn active" : "pill-btn"}
+                onClick={() => setSortMode("added")}
+              >
+                Added
+              </button>
+            </div>
+          ) : (
+            <div className="pill-row">
+              {["added", "title", "artist", "year"].map((mode) => (
+                <button
+                  key={mode}
+                  className={sortMode === mode ? "pill-btn active" : "pill-btn"}
+                  onClick={() => setSortMode(mode as any)}
+                >
+                  {mode === "added" ? "Added" : mode === "title" ? "Title" : mode === "artist" ? "Artist" : "Year"}
+                </button>
+              ))}
+            </div>
+          )}
         </header>
         {(rankingLoading || itemsLoading) && <div className="muted">Loading ranking…</div>}
         {!itemsLoading && sortedItems.length === 0 && <div className="muted">No albums yet. Add some on the /add page.</div>}
         {!itemsLoading && sortedItems.length > 0 && (
-          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-            <SortableContext items={sortedItems.map((i) => i.album_id)} strategy={horizontalListSortingStrategy}>
+          <>
+            {isRanked ? (
+              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                <SortableContext items={sortedItems.map((i) => i.album_id)} strategy={horizontalListSortingStrategy}>
+                  <div className="album-grid">
+                    {sortedItems.map((item) => (
+                      <div key={item.album_id} onClick={() => navigate(`/albums/${item.album_id}?ranking=${rankingListId}`)}>
+                        <SortableCard item={item} />
+                      </div>
+                    ))}
+                  </div>
+                </SortableContext>
+              </DndContext>
+            ) : (
               <div className="album-grid">
                 {sortedItems.map((item) => (
                   <div key={item.album_id} onClick={() => navigate(`/albums/${item.album_id}?ranking=${rankingListId}`)}>
@@ -283,12 +398,12 @@ const RankingPage = () => {
                   </div>
                 ))}
               </div>
-            </SortableContext>
-          </DndContext>
+            )}
+          </>
         )}
 
       </section>
-      {previousOrder && (
+      {previousOrder && isRanked && (
         <div className="card">
           <div className="pill-row">
             <button
@@ -301,6 +416,68 @@ const RankingPage = () => {
             >
               Undo last reorder
             </button>
+          </div>
+        </div>
+      )}
+      {showNewList && (
+        <div className="modal-backdrop">
+          <div className="modal">
+            <div className="modal-header">
+              <h3>New list</h3>
+              <button className="bubble-close" onClick={() => setShowNewList(false)}>
+                ×
+              </button>
+            </div>
+            <div className="form-grid">
+              <label className="field">
+                <span>Name</span>
+                <input
+                  className="input"
+                  value={newListName}
+                  onChange={(e) => setNewListName(e.target.value)}
+                  required
+                />
+              </label>
+              <label className="field">
+                <span>Mode</span>
+                <select
+                  className="input"
+                  value={newListMode}
+                  onChange={(e) => setNewListMode(e.target.value as "ranked" | "collection")}
+                >
+                  <option value="ranked">Ranked</option>
+                  <option value="collection">Collection</option>
+                </select>
+              </label>
+              <label className="field">
+                <span>Description (optional)</span>
+                <textarea
+                  className="input"
+                  rows={3}
+                  value={newListDescription}
+                  onChange={(e) => setNewListDescription(e.target.value)}
+                />
+              </label>
+            </div>
+            <div className="pill-row" style={{ marginTop: 12 }}>
+              <button
+                className="button"
+                onClick={() => {
+                  if (!newListName.trim()) return;
+                  createListMutation.mutate({
+                    name: newListName.trim(),
+                    mode: newListMode,
+                    description: newListDescription.trim() ? newListDescription.trim() : null
+                  });
+                }}
+                disabled={createListMutation.isPending}
+              >
+                Create
+              </button>
+              <button className="button ghost" onClick={() => setShowNewList(false)}>
+                Cancel
+              </button>
+            </div>
           </div>
         </div>
       )}
