@@ -25,20 +25,10 @@ const getUserId = async () => {
   return data.user.id;
 };
 
-export const searchItunes = async (term: string) => {
-  const params = new URLSearchParams({
-    term,
-    country: "US",
-    media: "music",
-    entity: "album",
-    limit: "10"
-  });
-  const res = await fetch(`https://itunes.apple.com/search?${params.toString()}`);
-  if (!res.ok) {
-    throw new Error("Failed to search iTunes");
-  }
-  const json = await res.json();
-  return (json.results ?? []) as any[];
+export const searchMusicBrainz = async (term: string) => {
+  const trimmed = term.trim();
+  if (!trimmed) return [];
+  return edgeInvoke<any[]>("musicbrainz_search", { term: trimmed });
 };
 
 export const ingestItunesAlbum = (payload: {
@@ -47,8 +37,8 @@ export const ingestItunesAlbum = (payload: {
     collectionName: string;
     artistName: string;
     releaseDate?: string | null;
-    artworkUrl60: string;
-    artworkUrl100: string;
+    artworkUrl60?: string | null;
+    artworkUrl100?: string | null;
     collectionViewUrl?: string | null;
   };
   targetListId?: string | null;
@@ -160,6 +150,12 @@ export const submitComparison = (payload: {
     left: { albumId: string; rating: number; matches: number };
     right: { albumId: string; rating: number; matches: number };
   }>("comparison_submit", payload);
+
+export const refetchAlbumArtwork = (payload: { albumId: string }) =>
+  edgeInvoke<{ ok: boolean; artwork_thumb_path: string; artwork_medium_path: string }>(
+    "album_refetch_artwork",
+    payload
+  );
 
 export const getAlbumMemberships = async (albumId: string) => {
   const { data, error } = await supabase

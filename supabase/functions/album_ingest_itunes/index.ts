@@ -13,8 +13,8 @@ type ItunesPayload = {
   collectionName: string;
   artistName: string;
   releaseDate?: string | null;
-  artworkUrl60: string;
-  artworkUrl100: string;
+  artworkUrl60?: string | null;
+  artworkUrl100?: string | null;
   collectionViewUrl?: string | null;
 };
 
@@ -32,15 +32,24 @@ const parseYear = (date?: string | null) => {
   return Number.isNaN(year) ? null : year;
 };
 
+const extensionFromContentType = (contentType: string) => {
+  if (contentType.includes("image/png")) return "png";
+  if (contentType.includes("image/webp")) return "webp";
+  if (contentType.includes("image/jpeg") || contentType.includes("image/jpg")) return "jpg";
+  return "jpg";
+};
+
 const fetchArtworkBytes = async (primaryUrl: string) => {
   // Try to request a higher-res version by swapping the size in the URL (iTunes convention).
   const deriveLarge = (url: string) => url.replace(/\/[0-9]+x[0-9]+bb\./, "/1000x1000bb.");
-  const candidates = [deriveLarge(primaryUrl), primaryUrl];
+  const derived = deriveLarge(primaryUrl);
+  const candidates = derived === primaryUrl ? [primaryUrl] : [derived, primaryUrl];
 
   for (const url of candidates) {
     const response = await fetch(url);
     if (response.ok) {
-      return response.arrayBuffer();
+      const contentType = response.headers.get("content-type") ?? "image/jpeg";
+      return { bytes: await response.arrayBuffer(), contentType };
     }
   }
 
@@ -50,11 +59,12 @@ const fetchArtworkBytes = async (primaryUrl: string) => {
 const uploadImage = async (
   path: string,
   bytes: ArrayBuffer,
+  contentType: string,
   serviceClient: ReturnType<typeof createServiceClient>
 ) => {
   const { error } = await serviceClient.storage.from(bucket).upload(path, bytes, {
     upsert: true,
-    contentType: "image/jpeg"
+    contentType
   });
 
   if (error) {
@@ -77,7 +87,7 @@ serve(async (req) => {
 
     const body = (await req.json()) as RequestBody;
     if (!body?.itunes?.collectionId || !body.itunes.collectionName || !body.itunes.artistName) {
-      return errorResponse("Missing required iTunes payload fields", 400);
+      return errorResponse("Missing required album payload fields", 400);
     }
 
     const includeInList = body.includeInList ?? true;
@@ -137,25 +147,29 @@ serve(async (req) => {
       }
     }
 
-    if (needsArtwork) {
-      const thumbPath = `itunes/${collectionId}/thumb.jpg`;
-      const mediumPath = `itunes/${collectionId}/medium.jpg`;
+    if (needsArtwork && body.itunes.artworkUrl100) {
+      try {
+        const artwork = await fetchArtworkBytes(body.itunes.artworkUrl100);
+        const ext = extensionFromContentType(artwork.contentType);
+        const thumbPath = `itunes/${collectionId}/thumb.${ext}`;
+        const mediumPath = `itunes/${collectionId}/medium.${ext}`;
+        await uploadImage(thumbPath, artwork.bytes, artwork.contentType, serviceClient);
+        await uploadImage(mediumPath, artwork.bytes, artwork.contentType, serviceClient);
 
-      const artworkBytes = await fetchArtworkBytes(body.itunes.artworkUrl100);
-      await uploadImage(thumbPath, artworkBytes, serviceClient);
-      await uploadImage(mediumPath, artworkBytes, serviceClient);
+        const { error } = await serviceClient
+          .from("albums")
+          .update({
+            artwork_thumb_path: thumbPath,
+            artwork_medium_path: mediumPath,
+            updated_at: new Date().toISOString()
+          })
+          .eq("id", albumId);
 
-      const { error } = await serviceClient
-        .from("albums")
-        .update({
-          artwork_thumb_path: thumbPath,
-          artwork_medium_path: mediumPath,
-          updated_at: new Date().toISOString()
-        })
-        .eq("id", albumId);
-
-      if (error) {
-        return errorResponse(error.message, 500);
+        if (error) {
+          return errorResponse(error.message, 500);
+        }
+      } catch (err) {
+        console.warn("Skipping artwork fetch/upload", err);
       }
     }
 

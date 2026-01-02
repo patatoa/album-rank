@@ -10,6 +10,7 @@ import {
   getRankingList,
   getRankingLists,
   removeAlbumFromRanking,
+  refetchAlbumArtwork,
   submitComparison,
   upsertUserAlbum,
   reorderRanking
@@ -122,6 +123,15 @@ const AlbumPage = () => {
     }
   });
 
+  const refetchArtworkMutation = useMutation({
+    mutationFn: refetchAlbumArtwork,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["album", albumId] }),
+    onError: (err) => {
+      console.error("Failed to refetch artwork", err);
+      alert("Failed to refetch artwork.");
+    }
+  });
+
   const toggleMembership = async () => {
     if (!selectedRanking || !albumId) return;
     const isMember = memberships?.some((m) => m.ranking_list_id === selectedRanking);
@@ -226,6 +236,18 @@ const AlbumPage = () => {
   const album = detail.album;
   const isMember = memberships?.some((m) => m.ranking_list_id === selectedRanking);
 
+  const linkLabel = (() => {
+    if (!album.itunes_url) return "View album";
+    try {
+      const host = new URL(album.itunes_url).hostname;
+      if (host.endsWith("musicbrainz.org")) return "View on MusicBrainz";
+      if (host.endsWith("itunes.apple.com") || host.endsWith("music.apple.com")) return "View on Apple";
+    } catch {
+      // ignore invalid URLs
+    }
+    return "View album";
+  })();
+
   return (
     <div className="page-grid">
       <section className="card">
@@ -241,9 +263,19 @@ const AlbumPage = () => {
             {album.provider === "itunes" && album.itunes_url && (
               <div>
                 <a className="pill link small" href={album.itunes_url} target="_blank" rel="noreferrer">
-                  View on Apple
+                  {linkLabel}
                 </a>
               </div>
+            )}
+            {!album.artwork_medium_path && album.provider === "itunes" && (
+              <button
+                className="pill link small"
+                type="button"
+                onClick={() => albumId && refetchArtworkMutation.mutate({ albumId })}
+                disabled={refetchArtworkMutation.isPending}
+              >
+                {refetchArtworkMutation.isPending ? "Fetching artwork…" : "Retry artwork"}
+              </button>
             )}
             <label className="field">
               <span>Status</span>

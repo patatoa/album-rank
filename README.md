@@ -7,6 +7,7 @@ Quickstart for local dev:
    - `VITE_SUPABASE_URL=http://localhost:54321`
    - `VITE_SUPABASE_ANON_KEY=<from supabase status -o env>`
    - `VITE_SUPABASE_FUNCTIONS_URL=http://127.0.0.1:54321/functions/v1`
+   - `MUSICBRAINZ_USER_AGENT=AlbumRank/1.0 (https://your-domain; contact@your-email)`
    - `SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID`
    - `SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET`
 3) Supabase local:
