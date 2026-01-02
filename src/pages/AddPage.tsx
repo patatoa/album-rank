@@ -6,7 +6,7 @@ import {
   ensureRankingLists,
   getRankingLists,
   ingestItunesAlbum,
-  searchItunes,
+  searchMusicBrainz
 } from "../lib/api";
 import { RankingList } from "../types";
 
@@ -33,15 +33,28 @@ const SearchResult = ({
 }: {
   result: any;
   onSelect: (payload: any) => void;
-}) => (
-  <button className="result" onClick={() => onSelect(result)}>
-    <img src={result.artworkUrl60} alt={result.collectionName} />
-    <div className="result-info">
-      <div className="result-title">{result.collectionName}</div>
-      <div className="result-artist">{result.artistName}</div>
-    </div>
-  </button>
-);
+}) => {
+  const [imageError, setImageError] = useState(false);
+  const showImage = result.artworkUrl60 && !imageError;
+
+  return (
+    <button className="result" onClick={() => onSelect(result)}>
+      {showImage ? (
+        <img
+          src={result.artworkUrl60}
+          alt={result.collectionName}
+          onError={() => setImageError(true)}
+        />
+      ) : (
+        <div className="result-artwork" aria-hidden="true" />
+      )}
+      <div className="result-info">
+        <div className="result-title">{result.collectionName}</div>
+        <div className="result-artist">{result.artistName}</div>
+      </div>
+    </button>
+  );
+};
 
 const AddPage = () => {
   const [term, setTerm] = useState("");
@@ -90,8 +103,8 @@ const AddPage = () => {
   }, [rankingOptions, targetListId]);
 
   const { data: searchResults, isLoading } = useQuery({
-    queryKey: ["itunesSearch", debounced],
-    queryFn: () => searchItunes(debounced),
+    queryKey: ["musicbrainzSearch", debounced],
+    queryFn: () => searchMusicBrainz(debounced),
     enabled: debounced.length > 2,
   });
 
@@ -108,7 +121,7 @@ const AddPage = () => {
       }
     },
     onError: (err) => {
-      console.error("Failed to ingest iTunes album", err);
+      console.error("Failed to ingest album", err);
       alert("Failed to add album. Please try again.");
     },
   });
@@ -146,8 +159,8 @@ const AddPage = () => {
         collectionName: result.collectionName,
         artistName: result.artistName,
         releaseDate: result.releaseDate,
-        artworkUrl60: result.artworkUrl60,
-        artworkUrl100: result.artworkUrl100,
+        artworkUrl60: result.artworkUrl60 ?? null,
+        artworkUrl100: result.artworkUrl100 ?? null,
         collectionViewUrl: result.collectionViewUrl,
       },
       targetListId,

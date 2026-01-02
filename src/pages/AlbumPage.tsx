@@ -241,7 +241,7 @@ const AlbumPage = () => {
             {album.provider === "itunes" && album.itunes_url && (
               <div>
                 <a className="pill link small" href={album.itunes_url} target="_blank" rel="noreferrer">
-                  View on Apple
+                  {album.itunes_url.includes("musicbrainz.org") ? "View on MusicBrainz" : "View on Apple"}
                 </a>
               </div>
             )}
