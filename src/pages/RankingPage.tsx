@@ -90,7 +90,6 @@ const RankingPage = () => {
     queryFn: getRankingLists
   });
   const { data: prefs } = useQuery({ queryKey: ["userPreferences"], queryFn: getUserPreferences });
-  const needsListening = rankingLists?.find((r) => r.name === "Needs listening");
 
   useEffect(() => {
     ensureRankingLists([], ["All Time"])
@@ -105,10 +104,9 @@ const RankingPage = () => {
   });
 
   useEffect(() => {
-    if (ranking?.mode === "collection" && (sortMode === "rank" || sortMode === "added")) {
+    if (ranking?.mode === "collection" && sortMode === "rank") {
       setSortMode("added");
-    }
-    if (ranking?.mode === "ranked" && sortMode !== "rank" && sortMode !== "added") {
+    } else if (ranking?.mode === "ranked" && sortMode !== "rank" && sortMode !== "added") {
       setSortMode("rank");
     }
   }, [ranking, sortMode]);
@@ -179,7 +177,7 @@ const RankingPage = () => {
       return base.sort((a, b) => (a.album?.release_year ?? 0) - (b.album?.release_year ?? 0));
     }
     return base.sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
-  }, [localItems, sortMode]);
+  }, [localItems, sortMode, statusFilter, ranking?.mode, ranking?.name]);
 
   const handleDragEnd = (event: DragEndEvent) => {
     if (ranking?.mode === "collection") return;
@@ -225,7 +223,7 @@ const RankingPage = () => {
     mutationFn: deleteList,
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["rankingLists"] });
-      const lists = (queryClient.getQueryData(["rankingLists"]) as any) as RankingList[] | undefined;
+      const lists = queryClient.getQueryData<RankingList[]>(["rankingLists"]);
       if (lists && lists.length > 0) {
         navigate(`/rankings/${lists[0].id}`, { replace: true });
       } else {
@@ -421,11 +419,11 @@ const RankingPage = () => {
           )}
           <div className="pill-row">
             <span className="pill">Filters</span>
-            {["all", "listening", "not_listened", "listened"].map((status) => (
+            {(["all", "listening", "not_listened", "listened"] as const).map((status) => (
               <button
                 key={status}
                 className={statusFilter === status ? "pill-btn active" : "pill-btn"}
-                onClick={() => setStatusFilter(status as any)}
+                onClick={() => setStatusFilter(status)}
               >
                 {status === "all" ? "All" : status === "not_listened" ? "Not listened" : status === "listening" ? "Listening" : "Listened"}
               </button>
@@ -540,15 +538,21 @@ const RankingPage = () => {
         </div>
       )}
       {showNameModal && (
-        <div className="modal-backdrop">
-          <div className="modal">
+        <div className="modal-backdrop" role="presentation">
+          <div
+            className="modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="display-name-title"
+            aria-describedby="display-name-desc"
+          >
             <div className="modal-header">
-              <h3>Set display name</h3>
-              <button className="bubble-close" onClick={() => setShowNameModal(false)}>
+              <h3 id="display-name-title">Set display name</h3>
+              <button className="bubble-close" aria-label="Close" onClick={() => setShowNameModal(false)}>
                 ×
               </button>
             </div>
-            <p className="muted small">
+            <p className="muted small" id="display-name-desc">
               This name appears on shared lists. You can update it anytime in Settings.
             </p>
             <label className="field">
@@ -575,7 +579,7 @@ const RankingPage = () => {
               >
                 Save & share
               </button>
-              <button className="button ghost" onClick={() => setShowNameModal(false)}>
+              <button className="button ghost" onClick={() => setShowNameModal(false)} aria-label="Cancel">
                 Cancel
               </button>
             </div>

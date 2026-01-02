@@ -57,14 +57,13 @@ serve(async (req) => {
         const candidate =
           fullName && fullName.trim().length > 0
             ? fullName
-            : email
-            ? email.split("@")[0]
             : adminUser?.user?.id
-            ? adminUser.user.id.slice(0, 8)
+            ? `User-${adminUser.user.id.slice(0, 6)}`
             : null;
         ownerName = candidate;
       }
-    } catch {
+    } catch (ownerErr) {
+      console.error("ranking_public_get owner lookup error", ownerErr);
       ownerName = null;
     }
 

@@ -333,17 +333,17 @@ const AlbumPage = () => {
                 )}
                 <div className="album-title">{opponent.album?.title ?? "Unknown"}</div>
                 <div className="album-artist">{opponent.album?.artist ?? ""}</div>
-                <button
-                  className="button ghost"
-                  onClick={() => handleCompare(opponent.album_id)}
-                  disabled={(comparisonMutation as any).isPending}
-                >
-                  Opponent wins
-                </button>
-              </div>
+              <button
+                className="button ghost"
+                onClick={() => handleCompare(opponent.album_id)}
+                disabled={comparisonMutation.isPending}
+              >
+                Opponent wins
+              </button>
             </div>
-          )}
-        </section>
+          </div>
+        )}
+      </section>
       )}
     </div>
   );

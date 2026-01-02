@@ -281,9 +281,10 @@ export const ensureRankingLists = async (years: number[], custom: string[] = [])
         .maybeSingle();
       if (selectError) throw selectError;
       if (!existing) {
+        const mode = name === needsName ? "collection" : "ranked";
         const { error: insertError } = await supabase
           .from("ranking_lists")
-          .insert({ user_id: userId, kind: "custom", name, mode: "ranked" });
+          .insert({ user_id: userId, kind: "custom", name, mode });
         if (insertError) throw insertError;
       }
     }
