@@ -70,6 +70,31 @@ body {
   align-items: center;
 }
 
+.footer {
+  margin: 24px 0 8px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.footer-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.footer-link:hover {
+  color: var(--accent);
+}
+
+.footer-text {
+  color: var(--muted);
+  font-size: 13px;
+}
+
 .nav-link {
   padding: 6px 10px;
   border: 1px solid var(--border);
@@ -277,6 +302,7 @@ body {
   gap: 6px;
   box-shadow: inset 0 0 0 1px var(--border);
   max-width: 120px;
+  position: relative;
 }
 
 .album-card img {
@@ -338,6 +364,10 @@ body {
   color: var(--accent);
 }
 
+.pill-btn .check {
+  color: var(--accent);
+}
+
 .flex-between {
   display: flex;
   align-items: center;
@@ -387,6 +417,30 @@ body {
   cursor: pointer;
 }
 
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  display: grid;
+  place-items: center;
+  z-index: 10;
+}
+
+.modal {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  padding: 16px;
+  border-radius: 10px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.25);
+  width: min(480px, 90vw);
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
 @media (max-width: 480px) {
   .logo {
     font-size: 14px;

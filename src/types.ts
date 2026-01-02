@@ -24,6 +24,7 @@ export type UserPreferences = {
   user_id: string;
   intro_dismissed: boolean;
   updated_at?: string;
+  display_name?: string | null;
 };
 
 export type RankingList = {
@@ -32,6 +33,8 @@ export type RankingList = {
   name: string;
   kind: "year" | "custom";
   year: number | null;
+  mode: "ranked" | "collection";
+  description?: string | null;
   is_public?: boolean;
   public_slug?: string | null;
   created_at?: string;
@@ -41,9 +44,11 @@ export type RankingList = {
 export type RankingItem = {
   ranking_list_id: string;
   album_id: string;
-  position: number;
+  position: number | null;
   added_at?: string;
   album?: Album;
+  user_status?: "not_listened" | "listening" | "listened";
+  user_notes?: string;
 };
 
 export type EloRating = {

@@ -4,7 +4,7 @@
 -- NOTE: Replace this UUID with your local user ID after signing in and running:
 -- select id from auth.users limit 1;
 -- Or set via env and sed before running supabase db reset.
-\echo 'Update user_id below before using seed.sql for local data.'
+-- \echo 'Update user_id below before using seed.sql for local data.'
 
 -- sample user id placeholder
 -- select '00000000-0000-0000-0000-000000000000' as user_id \gset

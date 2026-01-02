@@ -42,7 +42,7 @@ serve(async (req) => {
 
     const { data: ranking, error: rankingError } = await serviceClient
       .from("ranking_lists")
-      .select("id, user_id")
+      .select("id, user_id, mode")
       .eq("id", body.rankingListId)
       .maybeSingle();
 
@@ -52,6 +52,10 @@ serve(async (req) => {
 
     if (!ranking || ranking.user_id !== user.id) {
       return errorResponse("Ranking list not found for user", 403);
+    }
+
+    if (ranking.mode !== "ranked") {
+      return errorResponse("Comparisons only allowed for ranked lists", 422);
     }
 
     const ensureRating = async (albumId: string) => {

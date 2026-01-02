@@ -1,5 +1,6 @@
 import { supabase } from "./supabaseClient";
 import { Album, RankingItem, RankingList, UserAlbum, UserPreferences } from "../types";
+import { NEEDS_LIST_NAME } from "./constants";
 
 const edgeInvoke = async <T>(name: string, body: Record<string, unknown>) => {
   const {
@@ -50,16 +51,16 @@ export const ingestItunesAlbum = (payload: {
     artworkUrl100: string;
     collectionViewUrl?: string | null;
   };
-  targetRankingListId?: string | null;
-  includeInRanking?: boolean;
+  targetListId?: string | null;
+  includeInList?: boolean;
 }) => edgeInvoke<{ albumId: string; createdAlbum: boolean; createdRankingItem: boolean }>("album_ingest_itunes", payload);
 
 export const createManualAlbum = (payload: {
   title: string;
   artist: string;
   releaseYear?: number | null;
-  targetRankingListId?: string | null;
-  includeInRanking?: boolean;
+  targetListId?: string | null;
+  includeInList?: boolean;
   coverBase64?: string;
 }) => edgeInvoke<{ albumId: string; createdRankingItem: boolean }>("album_create_manual", payload);
 
@@ -76,13 +77,13 @@ export const getRankingList = async (id: string): Promise<RankingList | null> =>
 };
 
 export const getRankingItems = async (rankingListId: string): Promise<RankingItem[]> => {
-  const { data, error } = await supabase
+  const { data: items, error } = await supabase
     .from("ranking_items")
     .select("ranking_list_id, album_id, position, added_at, album:album_id(*)")
     .eq("ranking_list_id", rankingListId)
-    .order("position");
+    .order("position", { nullsFirst: true });
   if (error) throw error;
-  return (data ?? []) as unknown as RankingItem[];
+  return (items ?? []) as unknown as RankingItem[];
 };
 
 export const reorderRanking = async (payload: { rankingListId: string; orderedAlbumIds: string[] }) => {
@@ -171,22 +172,44 @@ export const getAlbumMemberships = async (albumId: string) => {
 };
 
 export const addAlbumToRanking = async (rankingListId: string, albumId: string) => {
-  const { data: maxRow, error: maxError } = await supabase
-    .from("ranking_items")
-    .select("position")
-    .eq("ranking_list_id", rankingListId)
-    .order("position", { ascending: false })
-    .limit(1)
+  // fetch list mode to decide position
+  const { data: list, error: listError } = await supabase
+    .from("ranking_lists")
+    .select("mode")
+    .eq("id", rankingListId)
     .maybeSingle();
-  if (maxError) throw maxError;
-  const nextPosition = (maxRow?.position ?? 0) + 1;
+  if (listError) throw listError;
+  const mode = (list?.mode as "ranked" | "collection") ?? "ranked";
+
+  let position: number | null = null;
+  if (mode === "ranked") {
+    const { data: maxRow, error: maxError } = await supabase
+      .from("ranking_items")
+      .select("position")
+      .eq("ranking_list_id", rankingListId)
+      .order("position", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (maxError) throw maxError;
+    position = (maxRow?.position ?? 0) + 1;
+  }
+
   const { error } = await supabase
     .from("ranking_items")
-    .insert({ ranking_list_id: rankingListId, album_id: albumId, position: nextPosition });
+    .insert({ ranking_list_id: rankingListId, album_id: albumId, position });
   if (error) throw error;
 };
 
 export const removeAlbumFromRanking = async (rankingListId: string, albumId: string) => {
+  // Determine mode to decide reindexing
+  const { data: list, error: listError } = await supabase
+    .from("ranking_lists")
+    .select("mode")
+    .eq("id", rankingListId)
+    .maybeSingle();
+  if (listError) throw listError;
+  const mode = (list?.mode as "ranked" | "collection") ?? "ranked";
+
   const { error } = await supabase
     .from("ranking_items")
     .delete()
@@ -194,21 +217,44 @@ export const removeAlbumFromRanking = async (rankingListId: string, albumId: str
     .eq("album_id", albumId);
   if (error) throw error;
 
-  const { data: remaining, error: listError } = await supabase
-    .from("ranking_items")
-    .select("album_id")
-    .eq("ranking_list_id", rankingListId)
-    .order("position");
-  if (listError) throw listError;
-  const orderedAlbumIds = (remaining ?? []).map((r) => r.album_id);
-  if (orderedAlbumIds.length > 0) {
-    await reorderRanking({ rankingListId, orderedAlbumIds });
+  if (mode === "ranked") {
+    const { data: remaining, error: listError2 } = await supabase
+      .from("ranking_items")
+      .select("album_id")
+      .eq("ranking_list_id", rankingListId)
+      .order("position");
+    if (listError2) throw listError2;
+    const orderedAlbumIds = (remaining ?? []).map((r) => r.album_id);
+    if (orderedAlbumIds.length > 0) {
+      await reorderRanking({ rankingListId, orderedAlbumIds });
+    }
   }
 };
 
 export const ensureRankingLists = async (years: number[], custom: string[] = []) => {
+  const customWithNeeds = Array.from(new Set([...(custom ?? []), NEEDS_LIST_NAME]));
+
   const fallbackClientInsert = async () => {
     const userId = await getUserId();
+    // Ensure special collection list exists
+    const { data: needsExisting, error: needsSelectError } = await supabase
+      .from("ranking_lists")
+      .select("id")
+      .eq("user_id", userId)
+      .eq("name", NEEDS_LIST_NAME)
+      .maybeSingle();
+    if (needsSelectError) throw needsSelectError;
+    if (!needsExisting) {
+      const { error: needsInsertError } = await supabase.from("ranking_lists").insert({
+        user_id: userId,
+        kind: "custom",
+        name: NEEDS_LIST_NAME,
+        mode: "collection",
+        description: "Auto-collection of albums to listen"
+      });
+      if (needsInsertError) throw needsInsertError;
+    }
+
     for (const year of years) {
       const { data: existing, error: selectError } = await supabase
         .from("ranking_lists")
@@ -221,11 +267,11 @@ export const ensureRankingLists = async (years: number[], custom: string[] = [])
       if (!existing) {
         const { error: insertError } = await supabase
           .from("ranking_lists")
-          .insert({ user_id: userId, kind: "year", year, name: String(year) });
+          .insert({ user_id: userId, kind: "year", year, name: String(year), mode: "ranked" });
         if (insertError) throw insertError;
       }
     }
-    for (const name of custom) {
+    for (const name of customWithNeeds) {
       const { data: existing, error: selectError } = await supabase
         .from("ranking_lists")
         .select("id")
@@ -235,16 +281,17 @@ export const ensureRankingLists = async (years: number[], custom: string[] = [])
         .maybeSingle();
       if (selectError) throw selectError;
       if (!existing) {
+        const mode = name === NEEDS_LIST_NAME ? "collection" : "ranked";
         const { error: insertError } = await supabase
           .from("ranking_lists")
-          .insert({ user_id: userId, kind: "custom", name });
+          .insert({ user_id: userId, kind: "custom", name, mode });
         if (insertError) throw insertError;
       }
     }
   };
 
   try {
-    await edgeInvoke<{ ok: boolean }>("ensure_ranking_lists", { years, custom });
+    await edgeInvoke<{ ok: boolean }>("ensure_ranking_lists", { years, custom: customWithNeeds });
   } catch (err) {
     console.warn("ensureRankingLists via Edge Function failed, falling back to client insert", err);
     await fallbackClientInsert();
@@ -253,17 +300,70 @@ export const ensureRankingLists = async (years: number[], custom: string[] = [])
   return getRankingLists();
 };
 
+export const getNeedsListeningItems = async (rankingListId: string): Promise<RankingItem[]> => {
+  const userId = await getUserId();
+  const { data, error } = await supabase
+    .from("user_albums")
+    .select("status, notes, created_at, album:album_id(*)")
+    .eq("user_id", userId)
+    .in("status", ["not_listened", "listening"]);
+  if (error) throw error;
+  return (data ?? []).map((row: any) => ({
+    ranking_list_id: rankingListId,
+    album_id: row.album?.id,
+    position: null,
+    added_at: row.created_at,
+    album: row.album,
+    user_status: row.status,
+    user_notes: row.notes
+  }));
+};
+
+export const createList = async (payload: {
+  name: string;
+  mode: "ranked" | "collection";
+  description?: string | null;
+  kind?: "year" | "custom";
+  year?: number | null;
+}): Promise<RankingList> => {
+  const user_id = await getUserId();
+  const { data, error } = await supabase
+    .from("ranking_lists")
+    .insert({
+      user_id,
+      name: payload.name,
+      mode: payload.mode,
+      description: payload.description ?? null,
+      kind: payload.kind ?? "custom",
+      year: payload.year ?? null
+    })
+    .select("*")
+    .single();
+  if (error) throw error;
+  return data as RankingList;
+};
+
+export const updateList = async (id: string, updates: Partial<Pick<RankingList, "name" | "description">>) => {
+  const { error } = await supabase.from("ranking_lists").update({ ...updates, updated_at: new Date().toISOString() }).eq("id", id);
+  if (error) throw error;
+};
+
+export const deleteList = async (id: string) => {
+  const { error } = await supabase.from("ranking_lists").delete().eq("id", id);
+  if (error) throw error;
+};
+
 export const getUserPreferences = async (): Promise<UserPreferences> => {
   const userId = await getUserId();
   const { data, error } = await supabase
     .from("user_preferences")
-    .select("user_id, intro_dismissed, updated_at")
+    .select("user_id, intro_dismissed, updated_at, display_name")
     .eq("user_id", userId)
     .maybeSingle();
   if (error && error.code !== "PGRST116") {
     throw error;
   }
-  return (data as UserPreferences) ?? { user_id: userId, intro_dismissed: false };
+  return (data as UserPreferences) ?? { user_id: userId, intro_dismissed: false, display_name: null };
 };
 
 export const dismissIntroBubble = async (): Promise<void> => {
@@ -271,5 +371,13 @@ export const dismissIntroBubble = async (): Promise<void> => {
   const { error } = await supabase
     .from("user_preferences")
     .upsert({ user_id: userId, intro_dismissed: true, updated_at: new Date().toISOString() });
+  if (error) throw error;
+};
+
+export const setDisplayName = async (display_name: string) => {
+  const userId = await getUserId();
+  const { error } = await supabase
+    .from("user_preferences")
+    .upsert({ user_id: userId, display_name, updated_at: new Date().toISOString() });
   if (error) throw error;
 };

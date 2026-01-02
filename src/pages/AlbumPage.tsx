@@ -15,6 +15,7 @@ import {
   reorderRanking
 } from "../lib/api";
 import { supabase } from "../lib/supabaseClient";
+import { NEEDS_LIST_NAME } from "../lib/constants";
 import { RankingItem } from "../types";
 
 const bucket = "album-art";
@@ -53,6 +54,9 @@ const AlbumPage = () => {
     queryKey: ["rankingLists"],
     queryFn: getRankingLists
   });
+  const selectableLists = rankingLists?.filter((r) => r.name !== NEEDS_LIST_NAME);
+  const selectedList = selectableLists?.find((r) => r.id === selectedRanking);
+  const isRankedList = (selectedList?.mode ?? "ranked") === "ranked";
 
   useEffect(() => {
     ensureRankingLists([], ["All Time"])
@@ -65,21 +69,37 @@ const AlbumPage = () => {
     queryFn: () => getAlbumMemberships(albumId ?? ""),
     enabled: !!albumId
   });
+  const membershipSet = useMemo(() => {
+    const set = new Set((memberships ?? []).map((m) => m.ranking_list_id));
+    const needsList = rankingLists?.find((r) => r.name === NEEDS_LIST_NAME);
+    const statusQualifies =
+      detail?.userAlbum?.status === "not_listened" || detail?.userAlbum?.status === "listening";
+    if (needsList && statusQualifies) {
+      set.add(needsList.id);
+    }
+    return set;
+  }, [memberships, rankingLists, detail]);
 
   useEffect(() => {
     if (selectedRanking) return;
-    if (rankingQueryParam) {
+    const firstSelectable = selectableLists?.[0]?.id ?? null;
+    if (rankingQueryParam && selectableLists?.some((r) => r.id === rankingQueryParam)) {
       setSelectedRanking(rankingQueryParam);
       return;
     }
     if (memberships && memberships.length > 0) {
-      setSelectedRanking(memberships[0].ranking_list_id);
-      return;
+      const firstMember = memberships.find((m) =>
+        selectableLists?.some((r) => r.id === m.ranking_list_id)
+      );
+      if (firstMember) {
+        setSelectedRanking(firstMember.ranking_list_id);
+        return;
+      }
     }
-    if (rankingLists && rankingLists.length > 0) {
-      setSelectedRanking(rankingLists[0].id);
+    if (firstSelectable) {
+      setSelectedRanking(firstSelectable);
     }
-  }, [memberships, rankingLists, selectedRanking, rankingQueryParam]);
+  }, [memberships, selectableLists, selectedRanking, rankingQueryParam]);
 
   const { data: ranking } = useQuery({
     queryKey: ["ranking", selectedRanking],
@@ -121,7 +141,10 @@ const AlbumPage = () => {
   }, [rankingItems]);
 
   useEffect(() => {
-    if (!albumId) return;
+    if (!albumId || !isRankedList) {
+      setOpponent(null);
+      return;
+    }
     const candidates = orderedItems.filter((item) => item.album_id !== albumId);
     if (candidates.length === 0) {
       setOpponent(null);
@@ -136,7 +159,8 @@ const AlbumPage = () => {
     const top = candidates.slice(0, Math.min(3, candidates.length));
     const idx = Math.floor(Math.random() * top.length);
     setOpponent(top[idx]);
-  }, [orderedItems, albumId]);
+    return () => setOpponent(null);
+  }, [orderedItems, albumId, isRankedList]);
 
   const comparisonMutation = useMutation({
     mutationFn: submitComparison,
@@ -151,7 +175,7 @@ const AlbumPage = () => {
   });
 
   const handleCompare = async (winnerAlbumId: string) => {
-    if (!selectedRanking || !albumId || !opponent) return;
+    if (!selectedRanking || !albumId || !opponent || !isRankedList) return;
     const loserAlbumId = opponent.album_id === winnerAlbumId ? albumId : opponent.album_id;
 
     await comparisonMutation.mutateAsync({
@@ -253,64 +277,68 @@ const AlbumPage = () => {
 
       <section className="card">
         <header className="card-header">
-          <p className="eyebrow">Ranking membership</p>
-          <h2>{ranking?.name ?? "Select ranking"}</h2>
+          <p className="eyebrow">Lists</p>
+          <h2>{selectedList?.name ?? ranking?.name ?? "Select list"}</h2>
           <div className="form-row">
             <select className="input" value={selectedRanking ?? ""} onChange={(e) => setSelectedRanking(e.target.value)}>
-              {rankingLists?.map((r) => (
+              {selectableLists?.map((r) => (
                 <option key={r.id} value={r.id}>
                   {r.kind === "year" && r.year ? `${r.year}` : r.name}
+                  {membershipSet.has(r.id) ? " ✓" : ""}
                 </option>
               ))}
             </select>
-            <button className="button" onClick={toggleMembership}>
-              {isMember ? "Remove from ranking" : "Add to ranking"}
+            <button className="button" onClick={toggleMembership} disabled={!selectedRanking}>
+              {isMember ? "Remove from list" : "Add to list"}
             </button>
           </div>
         </header>
         <div className="muted">
           {isMember
-            ? "This album is counted in this ranking."
-            : "Not in this ranking. Add it to include in comparisons."}
+            ? selectedList?.mode === "collection"
+              ? "This album is in this collection."
+              : "This album is counted in this ranked list."
+            : "Not in this list. Add it to include."}
         </div>
       </section>
 
-      <section className="card">
-        <header className="card-header">
-          <p className="eyebrow">This-or-that</p>
-          <h2>Compare within this ranking</h2>
-        </header>
-        {!opponent && <div className="muted">Need at least one other album in this ranking to compare.</div>}
-        {opponent && (
-          <div className="comparison">
-            <div className="compare-col">
-              {album.artwork_thumb_path && (
-                <img src={albumImage(album.artwork_thumb_path)} alt={album.title} className="compare-img" />
-              )}
-              <div className="album-title">{album.title}</div>
-              <div className="album-artist">{album.artist}</div>
-              <button
-                className="button primary"
-                onClick={() => handleCompare(album.id)}
-                disabled={(comparisonMutation as any).isPending}
-              >
-                This one wins
-              </button>
-            </div>
-            <div className="compare-col">
-              {opponent.album?.artwork_thumb_path && (
-                <img
-                  src={albumImage(opponent.album.artwork_thumb_path)}
-                  alt={opponent.album.title}
-                  className="compare-img"
-                />
-              )}
-              <div className="album-title">{opponent.album?.title ?? "Unknown"}</div>
-              <div className="album-artist">{opponent.album?.artist ?? ""}</div>
+      {isRankedList && (
+        <section className="card">
+          <header className="card-header">
+            <p className="eyebrow">This-or-that</p>
+            <h2>Compare within this ranking</h2>
+          </header>
+          {!opponent && <div className="muted">Need at least one other album in this ranking to compare.</div>}
+          {opponent && (
+            <div className="comparison">
+              <div className="compare-col">
+                {album.artwork_thumb_path && (
+                  <img src={albumImage(album.artwork_thumb_path)} alt={album.title} className="compare-img" />
+                )}
+                <div className="album-title">{album.title}</div>
+                <div className="album-artist">{album.artist}</div>
+                <button
+                  className="button primary"
+                  onClick={() => handleCompare(album.id)}
+                  disabled={(comparisonMutation as any).isPending}
+                >
+                  This one wins
+                </button>
+              </div>
+              <div className="compare-col">
+                {opponent.album?.artwork_thumb_path && (
+                  <img
+                    src={albumImage(opponent.album.artwork_thumb_path)}
+                    alt={opponent.album.title}
+                    className="compare-img"
+                  />
+                )}
+                <div className="album-title">{opponent.album?.title ?? "Unknown"}</div>
+                <div className="album-artist">{opponent.album?.artist ?? ""}</div>
               <button
                 className="button ghost"
                 onClick={() => handleCompare(opponent.album_id)}
-                disabled={(comparisonMutation as any).isPending}
+                disabled={comparisonMutation.isPending}
               >
                 Opponent wins
               </button>
@@ -318,6 +346,7 @@ const AlbumPage = () => {
           </div>
         )}
       </section>
+      )}
     </div>
   );
 };

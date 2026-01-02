@@ -22,7 +22,7 @@ serve(async (req) => {
 
     const { data: ranking, error: rankingError } = await serviceClient
       .from("ranking_lists")
-      .select("id, name, kind, year, is_public")
+      .select("id, name, kind, year, is_public, updated_at, user_id")
       .eq("public_slug", body.slug)
       .eq("is_public", true)
       .maybeSingle();
@@ -35,6 +35,38 @@ serve(async (req) => {
       return errorResponse("Not found", 404);
     }
 
+    // Fetch owner info for display (service role)
+    let ownerName: string | null = null;
+    try {
+      const { data: prefs } = await serviceClient
+        .from("user_preferences")
+        .select("display_name")
+        .eq("user_id", ranking.user_id)
+        .maybeSingle();
+
+      if (prefs?.display_name) {
+        ownerName = prefs.display_name;
+      } else {
+        const { data: adminUser } = await serviceClient.auth.admin.getUserById(ranking.user_id);
+        const meta = (adminUser?.user?.user_metadata ?? {}) as Record<string, unknown>;
+        const fullName =
+          (meta["full_name"] as string | undefined) ??
+          (meta["name"] as string | undefined) ??
+          (meta["preferred_username"] as string | undefined);
+        const email = adminUser?.user?.email ?? null;
+        const candidate =
+          fullName && fullName.trim().length > 0
+            ? fullName
+            : adminUser?.user?.id
+            ? `User-${adminUser.user.id.slice(0, 6)}`
+            : null;
+        ownerName = candidate;
+      }
+    } catch (ownerErr) {
+      console.error("ranking_public_get owner lookup error", ownerErr);
+      ownerName = null;
+    }
+
     const { data: items, error: itemsError } = await serviceClient
       .from("ranking_items")
       .select("album_id, position, album:album_id(id, title, artist, release_year, artwork_thumb_path)")
@@ -45,7 +77,7 @@ serve(async (req) => {
       return errorResponse(itemsError.message, 500);
     }
 
-    return jsonResponse({ ranking, items });
+    return jsonResponse({ ranking: { ...ranking, owner_name: ownerName }, items });
   } catch (err) {
     console.error("ranking_public_get error", err);
     return errorResponse(err instanceof Error ? err.message : "Unexpected error", 500);
