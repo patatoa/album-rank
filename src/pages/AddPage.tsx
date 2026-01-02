@@ -36,6 +36,12 @@ const SearchResult = ({
 }) => {
   const [imageError, setImageError] = useState(false);
   const showImage = result.artworkUrl60 && !imageError;
+  const fallbackText = `${result.collectionName ?? ""} ${result.artistName ?? ""}`
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((word: string) => word[0]?.toUpperCase())
+    .join("");
 
   return (
     <button className="result" onClick={() => onSelect(result)}>
@@ -46,7 +52,9 @@ const SearchResult = ({
           onError={() => setImageError(true)}
         />
       ) : (
-        <div className="result-artwork" aria-hidden="true" />
+        <div className="result-artwork" aria-hidden="true">
+          <span>{fallbackText || "♪"}</span>
+        </div>
       )}
       <div className="result-info">
         <div className="result-title">{result.collectionName}</div>

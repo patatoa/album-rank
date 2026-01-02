@@ -263,6 +263,12 @@ body {
   border-radius: 6px;
   background: linear-gradient(135deg, rgba(15, 23, 42, 0.2), rgba(148, 163, 184, 0.2));
   border: 1px solid var(--border);
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  color: var(--text);
+  font-size: 14px;
+  letter-spacing: 0.04em;
 }
 
 .result-title {
