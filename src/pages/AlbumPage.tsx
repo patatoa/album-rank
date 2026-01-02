@@ -10,6 +10,7 @@ import {
   getRankingList,
   getRankingLists,
   removeAlbumFromRanking,
+  refetchAlbumArtwork,
   submitComparison,
   upsertUserAlbum,
   reorderRanking
@@ -119,6 +120,15 @@ const AlbumPage = () => {
     onError: (err) => {
       console.error("Failed to update album status/notes", err);
       alert("Failed to save status or notes.");
+    }
+  });
+
+  const refetchArtworkMutation = useMutation({
+    mutationFn: refetchAlbumArtwork,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["album", albumId] }),
+    onError: (err) => {
+      console.error("Failed to refetch artwork", err);
+      alert("Failed to refetch artwork.");
     }
   });
 
@@ -256,6 +266,16 @@ const AlbumPage = () => {
                   {linkLabel}
                 </a>
               </div>
+            )}
+            {!album.artwork_medium_path && album.provider === "itunes" && (
+              <button
+                className="pill link small"
+                type="button"
+                onClick={() => albumId && refetchArtworkMutation.mutate({ albumId })}
+                disabled={refetchArtworkMutation.isPending}
+              >
+                {refetchArtworkMutation.isPending ? "Fetching artwork…" : "Retry artwork"}
+              </button>
             )}
             <label className="field">
               <span>Status</span>

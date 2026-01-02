@@ -151,6 +151,12 @@ export const submitComparison = (payload: {
     right: { albumId: string; rating: number; matches: number };
   }>("comparison_submit", payload);
 
+export const refetchAlbumArtwork = (payload: { albumId: string }) =>
+  edgeInvoke<{ ok: boolean; artwork_thumb_path: string; artwork_medium_path: string }>(
+    "album_refetch_artwork",
+    payload
+  );
+
 export const getAlbumMemberships = async (albumId: string) => {
   const { data, error } = await supabase
     .from("ranking_items")
