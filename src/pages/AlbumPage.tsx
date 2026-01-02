@@ -15,6 +15,7 @@ import {
   reorderRanking
 } from "../lib/api";
 import { supabase } from "../lib/supabaseClient";
+import { NEEDS_LIST_NAME } from "../lib/constants";
 import { RankingItem } from "../types";
 
 const bucket = "album-art";
@@ -53,7 +54,7 @@ const AlbumPage = () => {
     queryKey: ["rankingLists"],
     queryFn: getRankingLists
   });
-  const selectableLists = rankingLists?.filter((r) => r.name !== "Needs listening");
+  const selectableLists = rankingLists?.filter((r) => r.name !== NEEDS_LIST_NAME);
   const selectedList = selectableLists?.find((r) => r.id === selectedRanking);
   const isRankedList = (selectedList?.mode ?? "ranked") === "ranked";
 
@@ -70,7 +71,7 @@ const AlbumPage = () => {
   });
   const membershipSet = useMemo(() => {
     const set = new Set((memberships ?? []).map((m) => m.ranking_list_id));
-    const needsList = rankingLists?.find((r) => r.name === "Needs listening");
+    const needsList = rankingLists?.find((r) => r.name === NEEDS_LIST_NAME);
     const statusQualifies =
       detail?.userAlbum?.status === "not_listened" || detail?.userAlbum?.status === "listening";
     if (needsList && statusQualifies) {
@@ -158,7 +159,8 @@ const AlbumPage = () => {
     const top = candidates.slice(0, Math.min(3, candidates.length));
     const idx = Math.floor(Math.random() * top.length);
     setOpponent(top[idx]);
-  }, [orderedItems, albumId]);
+    return () => setOpponent(null);
+  }, [orderedItems, albumId, isRankedList]);
 
   const comparisonMutation = useMutation({
     mutationFn: submitComparison,

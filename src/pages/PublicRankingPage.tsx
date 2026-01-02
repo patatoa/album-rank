@@ -75,7 +75,7 @@ const PublicRankingPage = () => {
               <p className="eyebrow">Shared {data.ranking.mode === "collection" ? "collection" : "list"}</p>
               <h2>
                 {data.ranking.owner_name
-                  ? `${data.ranking.owner_name}’s ${data.ranking.name}`
+                  ? `${data.ranking.owner_name}${data.ranking.owner_name.endsWith("s") ? "’" : "’s"} ${data.ranking.name}`
                   : `Shared ${data.ranking.name}`}
               </h2>
               <div className="pill-row">

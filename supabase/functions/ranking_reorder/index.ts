@@ -46,7 +46,7 @@ serve(async (req) => {
     }
 
     if (ranking.mode !== "ranked") {
-      return errorResponse("Reorder not allowed for collection lists", 400);
+      return errorResponse("Reorder not allowed for collection lists", 422);
     }
 
     const { data: items, error: itemsError } = await serviceClient

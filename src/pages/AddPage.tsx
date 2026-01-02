@@ -191,7 +191,7 @@ const AddPage = () => {
               value={targetListId ?? ""}
               onChange={(e) => setTargetListId(e.target.value)}
               className="input"
-              disabled={rankingOptions.length === 0 || !includeInList}
+              disabled={rankingOptions.length === 0}
             >
               {rankingOptions.map((r: RankingList) => (
                 <option key={r.id} value={r.id}>

@@ -1,5 +1,6 @@
 import { supabase } from "./supabaseClient";
 import { Album, RankingItem, RankingList, UserAlbum, UserPreferences } from "../types";
+import { NEEDS_LIST_NAME } from "./constants";
 
 const edgeInvoke = async <T>(name: string, body: Record<string, unknown>) => {
   const {
@@ -231,8 +232,7 @@ export const removeAlbumFromRanking = async (rankingListId: string, albumId: str
 };
 
 export const ensureRankingLists = async (years: number[], custom: string[] = []) => {
-  const needsName = "Needs listening";
-  const customWithNeeds = Array.from(new Set([...(custom ?? []), needsName]));
+  const customWithNeeds = Array.from(new Set([...(custom ?? []), NEEDS_LIST_NAME]));
 
   const fallbackClientInsert = async () => {
     const userId = await getUserId();
@@ -241,14 +241,14 @@ export const ensureRankingLists = async (years: number[], custom: string[] = [])
       .from("ranking_lists")
       .select("id")
       .eq("user_id", userId)
-      .eq("name", needsName)
+      .eq("name", NEEDS_LIST_NAME)
       .maybeSingle();
     if (needsSelectError) throw needsSelectError;
     if (!needsExisting) {
       const { error: needsInsertError } = await supabase.from("ranking_lists").insert({
         user_id: userId,
         kind: "custom",
-        name: needsName,
+        name: NEEDS_LIST_NAME,
         mode: "collection",
         description: "Auto-collection of albums to listen"
       });
@@ -281,7 +281,7 @@ export const ensureRankingLists = async (years: number[], custom: string[] = [])
         .maybeSingle();
       if (selectError) throw selectError;
       if (!existing) {
-        const mode = name === needsName ? "collection" : "ranked";
+        const mode = name === NEEDS_LIST_NAME ? "collection" : "ranked";
         const { error: insertError } = await supabase
           .from("ranking_lists")
           .insert({ user_id: userId, kind: "custom", name, mode });

@@ -55,7 +55,7 @@ serve(async (req) => {
     }
 
     if (ranking.mode !== "ranked") {
-      return errorResponse("Comparisons only allowed for ranked lists", 400);
+      return errorResponse("Comparisons only allowed for ranked lists", 422);
     }
 
     const ensureRating = async (albumId: string) => {

@@ -17,6 +17,7 @@ import {
   getUserPreferences,
   setDisplayName
 } from "../lib/api";
+import { NEEDS_LIST_NAME } from "../lib/constants";
 import { RankingItem, RankingList } from "../types";
 import {
   DndContext,
@@ -97,6 +98,17 @@ const RankingPage = () => {
       .catch((err) => console.error("ensureRankingLists failed", err));
   }, [queryClient]);
 
+  useEffect(() => {
+    if (!showNameModal) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setShowNameModal(false);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [showNameModal]);
+
   const { data: ranking, isLoading: rankingLoading } = useQuery({
     queryKey: ["ranking", rankingListId],
     queryFn: () => getRankingList(rankingListId ?? ""),
@@ -114,7 +126,7 @@ const RankingPage = () => {
   const { data: itemsData, isLoading: itemsLoading } = useQuery({
     queryKey: ["rankingItems", rankingListId, ranking?.mode, ranking?.name],
     queryFn: () => {
-      if (ranking?.mode === "collection" && ranking?.name === "Needs listening") {
+      if (ranking?.mode === "collection" && ranking?.name === NEEDS_LIST_NAME) {
         return getNeedsListeningItems(rankingListId ?? "");
       }
       return getRankingItems(rankingListId ?? "");
@@ -402,14 +414,14 @@ const RankingPage = () => {
             </div>
           ) : (
             <div className="pill-row">
-              {ranking?.name === "Needs listening" ? (
-                <span className="pill">Auto-sorted (Listening → Not listened, newest first)</span>
-              ) : (
-                ["added", "title", "artist", "year"].map((mode) => (
-                  <button
-                    key={mode}
+          {ranking?.name === NEEDS_LIST_NAME ? (
+            <span className="pill">Auto-sorted (Listening → Not listened, newest first)</span>
+          ) : (
+            ["added", "title", "artist", "year"].map((mode) => (
+              <button
+                key={mode}
                     className={sortMode === mode ? "pill-btn active" : "pill-btn"}
-                    onClick={() => setSortMode(mode as any)}
+                    onClick={() => setSortMode(mode as "added" | "title" | "artist" | "year")}
                   >
                     {mode === "added" ? "Added" : mode === "title" ? "Title" : mode === "artist" ? "Artist" : "Year"}
                   </button>
@@ -538,13 +550,18 @@ const RankingPage = () => {
         </div>
       )}
       {showNameModal && (
-        <div className="modal-backdrop" role="presentation">
+        <div
+          className="modal-backdrop"
+          role="presentation"
+          onClick={() => setShowNameModal(false)}
+        >
           <div
             className="modal"
             role="dialog"
             aria-modal="true"
             aria-labelledby="display-name-title"
             aria-describedby="display-name-desc"
+            onClick={(e) => e.stopPropagation()}
           >
             <div className="modal-header">
               <h3 id="display-name-title">Set display name</h3>
