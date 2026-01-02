@@ -226,6 +226,18 @@ const AlbumPage = () => {
   const album = detail.album;
   const isMember = memberships?.some((m) => m.ranking_list_id === selectedRanking);
 
+  const linkLabel = (() => {
+    if (!album.itunes_url) return "View album";
+    try {
+      const host = new URL(album.itunes_url).hostname;
+      if (host.endsWith("musicbrainz.org")) return "View on MusicBrainz";
+      if (host.endsWith("itunes.apple.com") || host.endsWith("music.apple.com")) return "View on Apple";
+    } catch {
+      // ignore invalid URLs
+    }
+    return "View album";
+  })();
+
   return (
     <div className="page-grid">
       <section className="card">
@@ -241,7 +253,7 @@ const AlbumPage = () => {
             {album.provider === "itunes" && album.itunes_url && (
               <div>
                 <a className="pill link small" href={album.itunes_url} target="_blank" rel="noreferrer">
-                  {album.itunes_url.includes("musicbrainz.org") ? "View on MusicBrainz" : "View on Apple"}
+                  {linkLabel}
                 </a>
               </div>
             )}

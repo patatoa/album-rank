@@ -32,6 +32,13 @@ const parseYear = (date?: string | null) => {
   return Number.isNaN(year) ? null : year;
 };
 
+const extensionFromContentType = (contentType: string) => {
+  if (contentType.includes("image/png")) return "png";
+  if (contentType.includes("image/webp")) return "webp";
+  if (contentType.includes("image/jpeg") || contentType.includes("image/jpg")) return "jpg";
+  return "jpg";
+};
+
 const fetchArtworkBytes = async (primaryUrl: string) => {
   // Try to request a higher-res version by swapping the size in the URL (iTunes convention).
   const deriveLarge = (url: string) => url.replace(/\/[0-9]+x[0-9]+bb\./, "/1000x1000bb.");
@@ -141,11 +148,11 @@ serve(async (req) => {
     }
 
     if (needsArtwork && body.itunes.artworkUrl100) {
-      const thumbPath = `itunes/${collectionId}/thumb.jpg`;
-      const mediumPath = `itunes/${collectionId}/medium.jpg`;
-
       try {
         const artwork = await fetchArtworkBytes(body.itunes.artworkUrl100);
+        const ext = extensionFromContentType(artwork.contentType);
+        const thumbPath = `itunes/${collectionId}/thumb.${ext}`;
+        const mediumPath = `itunes/${collectionId}/medium.${ext}`;
         await uploadImage(thumbPath, artwork.bytes, artwork.contentType, serviceClient);
         await uploadImage(mediumPath, artwork.bytes, artwork.contentType, serviceClient);
 

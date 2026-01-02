@@ -39,8 +39,10 @@ const SearchResult = ({
   const fallbackText = `${result.collectionName ?? ""} ${result.artistName ?? ""}`
     .trim()
     .split(/\s+/)
+    .map((word: string) => word[0])
+    .filter(Boolean)
     .slice(0, 2)
-    .map((word: string) => word[0]?.toUpperCase())
+    .map((letter: string) => letter.toUpperCase())
     .join("");
 
   return (
