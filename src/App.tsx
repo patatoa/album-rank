@@ -10,10 +10,12 @@ import SettingsPage from "./pages/SettingsPage";
 import { useAuth } from "./lib/AuthProvider";
 import { useTheme } from "./lib/theme";
 import InfoBubble from "./components/InfoBubble";
+import { FiGithub } from "react-icons/fi";
 
 const Nav = () => {
   const location = useLocation();
-  const active = (path: string) => (location.pathname.startsWith(path) ? "nav-link active" : "nav-link");
+  const active = (path: string) =>
+    location.pathname.startsWith(path) ? "nav-link active" : "nav-link";
 
   return (
     <nav className="nav">
@@ -39,7 +41,11 @@ const Layout = ({ children }: { children: ReactNode }) => {
         <div className="logo">[ album-rank ]</div>
         <div className="nav-group">
           <Nav />
-          <button className="button ghost" onClick={toggleTheme} aria-label="Toggle theme">
+          <button
+            className="button ghost"
+            onClick={toggleTheme}
+            aria-label="Toggle theme"
+          >
             {theme === "light" ? "☀" : "☾"}
           </button>
           {user && (
@@ -51,6 +57,17 @@ const Layout = ({ children }: { children: ReactNode }) => {
       </header>
       <InfoBubble />
       {children}
+      <footer className="footer">
+        <a
+          href="https://github.com/patatoa/album-rank"
+          target="_blank"
+          rel="noreferrer"
+          className="footer-link"
+        >
+          <FiGithub />
+        </a>
+        <span className="footer-text">Patatoa {new Date().getFullYear()}</span>
+      </footer>
     </div>
   );
 };
@@ -59,7 +76,11 @@ function App() {
   const { session, loading } = useAuth();
 
   if (loading) {
-    return <div className="page"><div className="card">Loading session…</div></div>;
+    return (
+      <div className="page">
+        <div className="card">Loading session…</div>
+      </div>
+    );
   }
 
   // Allow public share page without auth

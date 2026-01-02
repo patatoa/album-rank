@@ -70,6 +70,31 @@ body {
   align-items: center;
 }
 
+.footer {
+  margin: 24px 0 8px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.footer-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.footer-link:hover {
+  color: var(--accent);
+}
+
+.footer-text {
+  color: var(--muted);
+  font-size: 13px;
+}
+
 .nav-link {
   padding: 6px 10px;
   border: 1px solid var(--border);
