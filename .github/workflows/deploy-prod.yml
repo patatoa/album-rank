@@ -33,3 +33,20 @@ jobs:
 
       - name: Deploy Edge Functions (prod)
         run: supabase functions deploy --project-ref "$SUPABASE_PROJECT_ID"
+
+      - name: Smoke check public ranking endpoint
+        run: |
+          set -e
+          status=$(curl -s -o /dev/null -w "%{http_code}" \
+            -X POST \
+            -H "Content-Type: application/json" \
+            -d '{"slug":"__health__"}' \
+            "https://${SUPABASE_PROJECT_ID}.supabase.co/functions/v1/ranking_public_get")
+          if [ "$status" = "401" ] || [ "$status" = "403" ]; then
+            echo "ranking_public_get is not public (HTTP $status)"
+            exit 1
+          fi
+          if [ "$status" != "404" ] && [ "$status" != "200" ]; then
+            echo "Unexpected status from ranking_public_get (HTTP $status)"
+            exit 1
+          fi
