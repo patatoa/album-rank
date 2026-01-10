@@ -30,4 +30,4 @@ Workflows:
 Security note:
 - `supabase/config.toml` reads Google client/secret from env (`SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID` / `SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET`).
 - For local `supabase start`, export those env vars before starting Supabase. For hosted projects, set the Google client/secret in the Supabase dashboard (Auth → Providers → Google).
-- Public sharing: share/unshare from the ranking page. Behind the scenes `ranking_share` toggles `is_public`/`public_slug`, and the public view lives at `/share/:slug` (served by the `ranking_public_get` Edge Function).
+- Public sharing: share/unshare from the ranking page. Behind the scenes `ranking_share` toggles `is_public`/`public_slug`, and the public view lives at `/share/:slug` (served by the `ranking_public_get` Edge Function). `ranking_public_get` is public (`verify_jwt = false`) so unauthenticated viewers can load shared rankings.
