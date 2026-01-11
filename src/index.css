@@ -317,26 +317,7 @@ body {
   box-shadow: inset 0 0 0 1px var(--border);
   max-width: 120px;
   position: relative;
-}
-
-.drag-handle {
-  position: absolute;
-  top: 6px;
-  right: 6px;
-  border: 1px dashed var(--border);
-  background: var(--panel);
-  color: var(--muted);
-  font-weight: 700;
-  font-size: 12px;
-  line-height: 1;
-  padding: 4px 6px;
-  border-radius: 6px;
-  cursor: grab;
-  touch-action: none;
-}
-
-.drag-handle:active {
-  cursor: grabbing;
+  touch-action: pan-y;
 }
 
 .album-card img {
