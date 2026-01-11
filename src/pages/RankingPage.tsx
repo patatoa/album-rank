@@ -23,6 +23,7 @@ import {
   DndContext,
   DragEndEvent,
   PointerSensor,
+  TouchSensor,
   closestCenter,
   useSensor,
   useSensors
@@ -50,7 +51,9 @@ type ComparisonPair = {
 };
 
 const SortableCard = ({ item }: { item: RankingItem }) => {
-  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: item.album_id });
+  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition } = useSortable({
+    id: item.album_id
+  });
   const style = {
     transform: CSS.Transform.toString(transform),
     transition
@@ -58,8 +61,19 @@ const SortableCard = ({ item }: { item: RankingItem }) => {
 
   const album = item.album;
   return (
-    <div className="album-card" ref={setNodeRef} style={style} {...attributes} {...listeners}>
+    <div className="album-card" ref={setNodeRef} style={style}>
       <div className="album-rank">#{item.position ?? "•"}</div>
+      <button
+        className="drag-handle"
+        type="button"
+        ref={setActivatorNodeRef}
+        {...attributes}
+        {...listeners}
+        aria-label="Drag to reorder"
+        onClick={(e) => e.stopPropagation()}
+      >
+        :::
+      </button>
       {album ? (
         <img src={albumImage(album.artwork_thumb_path)} alt={album.title} />
       ) : (
@@ -144,7 +158,10 @@ const RankingPage = () => {
     }
   });
 
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 120, tolerance: 6 } })
+  );
 
   useEffect(() => {
     if (itemsData) {
