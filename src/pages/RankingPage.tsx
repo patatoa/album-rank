@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router-dom";
 import { FiShare2, FiEyeOff } from "react-icons/fi";
@@ -86,6 +86,7 @@ const RankingPage = () => {
   const [showNameModal, setShowNameModal] = useState(false);
   const [nameInput, setNameInput] = useState("");
   const queryClient = useQueryClient();
+  const previousModeRef = useRef<"ranked" | "collection" | null>(null);
 
   const { data: rankingLists } = useQuery({
     queryKey: ["rankingLists"],
@@ -117,11 +118,19 @@ const RankingPage = () => {
   });
 
   useEffect(() => {
-    if (ranking?.mode === "collection" && sortMode === "rank") {
+    if (!ranking?.mode) return;
+    const cameFromCollection = previousModeRef.current === "collection";
+    const shouldForceRank =
+      ranking.mode === "ranked" && (cameFromCollection || (sortMode !== "rank" && sortMode !== "added"));
+    const shouldForceAdded = ranking.mode === "collection" && sortMode === "rank";
+
+    if (shouldForceAdded) {
       setSortMode("added");
-    } else if (ranking?.mode === "ranked" && sortMode !== "rank" && sortMode !== "added") {
+    } else if (shouldForceRank) {
       setSortMode("rank");
     }
+
+    previousModeRef.current = ranking.mode;
   }, [ranking, sortMode]);
 
   const { data: itemsData, isLoading: itemsLoading } = useQuery({
