@@ -1,0 +1,26 @@
+name: Supabase Keep Alive
+
+on:
+  schedule:
+    # Runs daily at 12:00 UTC
+    - cron: "0 12 * * *"
+  workflow_dispatch:
+
+jobs:
+  keep-alive:
+    runs-on: ubuntu-latest
+    environment: prod
+    steps:
+      - name: Ping keep_alive edge function
+        env:
+          SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+          KEEPALIVE_SECRET: ${{ secrets.KEEPALIVE_SECRET }}
+        run: |
+          set -euo pipefail
+
+          response=$(curl -sf -X POST \
+            "https://${SUPABASE_PROJECT_ID}.supabase.co/functions/v1/keep_alive" \
+            -H "Authorization: Bearer ${KEEPALIVE_SECRET}" \
+            -H "Content-Type: application/json")
+
+          echo "Response: $response"
