@@ -8,20 +8,14 @@ serve(async (req) => {
     return errorResponse("Method not allowed", 405);
   }
 
-  // Validate shared secret
   const secret = Deno.env.get("KEEPALIVE_SECRET");
-  if (!secret) {
-    return errorResponse("KEEPALIVE_SECRET not configured", 500);
-  }
+  if (!secret) return errorResponse("KEEPALIVE_SECRET not configured", 500);
+
   const auth = req.headers.get("Authorization");
-  if (auth !== `Bearer ${secret}`) {
-    return errorResponse("Unauthorized", 401);
-  }
+  if (auth !== `Bearer ${secret}`) return errorResponse("Unauthorized", 401);
 
   const rankingListId = Deno.env.get("KEEPALIVE_RANKING_LIST_ID");
-  if (!rankingListId) {
-    return errorResponse("KEEPALIVE_RANKING_LIST_ID not configured", 500);
-  }
+  if (!rankingListId) return errorResponse("KEEPALIVE_RANKING_LIST_ID not configured", 500);
 
   try {
     const client = createServiceClient();
@@ -38,28 +32,29 @@ serve(async (req) => {
       return errorResponse("Ranking list needs at least 6 albums", 400);
     }
 
-    const albumIds = items.map((i) => i.album_id as string);
+    const album5 = items[4].album_id as string;
+    const album6 = items[5].album_id as string;
 
-    const swap = async (ids: string[]) => {
-      for (let i = 0; i < ids.length; i++) {
-        const { error } = await client
-          .from("ranking_items")
-          .update({ position: i + 1 })
-          .eq("ranking_list_id", rankingListId)
-          .eq("album_id", ids[i]);
-        if (error) throw new Error(error.message);
-      }
+    const setPosition = async (albumId: string, position: number | null) => {
+      const { error } = await client
+        .from("ranking_items")
+        .update({ position })
+        .eq("ranking_list_id", rankingListId)
+        .eq("album_id", albumId);
+      if (error) throw new Error(error.message);
     };
 
-    // Swap positions 5 and 6 (indices 4 and 5)
-    const swapped = [...albumIds];
-    [swapped[4], swapped[5]] = [swapped[5], swapped[4]];
-
-    await swap(swapped);
+    // Swap 5 and 6: null-intermediate to avoid unique constraint conflict
+    await setPosition(album5, null);
+    await setPosition(album6, 5);
+    await setPosition(album5, 6);
 
     await new Promise((r) => setTimeout(r, 5000));
 
-    await swap(albumIds);
+    // Swap back
+    await setPosition(album6, null);
+    await setPosition(album5, 5);
+    await setPosition(album6, 6);
 
     return jsonResponse({ ok: true });
   } catch (err) {
